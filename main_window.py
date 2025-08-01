@@ -27,20 +27,21 @@ class ContentManager(QMainWindow):
         
         # Inisialisasi properti
         self.base_path = config.BASE_PATH
-        self.task_base_path = config.TASK_BASE_PATH # BARU
+        # TASK_BASE_PATH sekarang adalah file, bukan direktori
+        self.task_data_file = config.TASK_BASE_PATH 
         self.current_topic_path = None
         self.current_subject_path = None
         self.current_content = None
-        self.current_task_category = None # BARU
+        self.current_task_category = None 
         self.sort_column = 1
         self.sort_order = Qt.SortOrder.AscendingOrder
         self.settings = QSettings("MyCompany", "ContentManager")
         self.date_filter = "all"
-        self.scale_config = {} # Inisialisasi properti skala
+        self.scale_config = {} 
 
         # Inisialisasi modul-modul
+        # DataManager sekarang hanya butuh base_path untuk topics
         self.data_manager = DataManager(self.base_path)
-        self.data_manager.task_base_path = self.task_base_path # Atur path task
         self.handlers = EventHandlers(self)
         self.ui_builder = UIBuilder(self)
         
@@ -52,9 +53,9 @@ class ContentManager(QMainWindow):
         
         # Load data dan preferensi awal
         self.load_theme()
-        self.load_scale() # Muat skala setelah UI dibuat
+        self.load_scale() 
         self.refresh_topic_list()
-        self.refresh_task_category_list() # BARU
+        self.refresh_task_category_list() 
         self.handlers.update_button_states()
         self.content_tree.header().setSortIndicator(self.sort_column, self.sort_order)
 
@@ -190,8 +191,8 @@ class ContentManager(QMainWindow):
         self.topic_title_label.setFont(title_font)
         self.subject_title_label.setFont(title_font)
         self.content_title_label.setFont(title_font)
-        self.task_category_title_label.setFont(title_font) # BARU
-        self.task_title_label.setFont(title_font) # BARU
+        self.task_category_title_label.setFont(title_font)
+        self.task_title_label.setFont(title_font)
 
         # Terapkan ke widget list dan tree
         self.topic_list.setFont(list_font)
@@ -199,17 +200,17 @@ class ContentManager(QMainWindow):
         self.subject_list.setFont(list_font)
         self.subject_list.setIconSize(q_icon_size)
         self.content_tree.setFont(list_font)
-        self.task_category_list.setFont(list_font) # BARU
-        self.task_category_list.setIconSize(q_icon_size) # BARU
-        self.task_tree.setFont(list_font) # BARU
+        self.task_category_list.setFont(list_font) 
+        self.task_category_list.setIconSize(q_icon_size) 
+        self.task_tree.setFont(list_font)
 
 
         # Refresh tampilan untuk memastikan ukuran diterapkan dengan benar
         self.refresh_topic_list()
         self.refresh_subject_list()
         self.refresh_content_tree()
-        self.refresh_task_category_list() # BARU
-        self.refresh_task_list() # BARU
+        self.refresh_task_category_list()
+        self.refresh_task_list()
 
     # --- Metode untuk Refresh Tampilan ---
     def refresh_topic_list(self):
@@ -366,6 +367,9 @@ class ContentManager(QMainWindow):
         self.task_category_list.blockSignals(True)
         self.task_category_list.clear()
 
+        # Tambahkan item "Semua Task" secara manual
+        self.task_category_list.addItem("Semua Task")
+
         categories = self.data_manager.get_task_categories()
         item_to_reselect = None
         for cat_data in categories:
@@ -377,11 +381,11 @@ class ContentManager(QMainWindow):
 
         if item_to_reselect:
             self.task_category_list.setCurrentItem(item_to_reselect)
-        elif self.task_category_list.count() > 0:
-            self.task_category_list.setCurrentRow(0) # Pilih item pertama jika tidak ada yang ter-reselect
+        else:
+            self.task_category_list.setCurrentRow(0) # Default ke "Semua Task"
 
         self.task_category_list.blockSignals(False)
-        # Manually trigger the selection change to load tasks for the default/reselected category
+        # Panggil handler secara manual untuk memuat task
         if self.task_category_list.currentItem():
              self.handlers.task_category_selected(self.task_category_list.currentItem(), None)
 
@@ -390,15 +394,41 @@ class ContentManager(QMainWindow):
         """Merefresh daftar task berdasarkan kategori yang dipilih."""
         self.task_tree.clear()
         
-        if not self.current_task_category or self.current_task_category == "Semua Task":
+        if not self.current_task_category:
             self.handlers.update_button_states()
             return
-
-        tasks = self.data_manager.get_tasks(self.current_task_category)
+            
+        if self.current_task_category == "Semua Task":
+            tasks = self.data_manager.get_all_tasks()
+        else:
+            tasks = self.data_manager.get_tasks(self.current_task_category)
             
         for task_data in tasks:
             item = QTreeWidgetItem(self.task_tree)
             item.setText(0, task_data['name'])
             item.setText(1, str(task_data['count']))
             item.setText(2, task_data.get('date', ''))
+
+            # Simpan info asli (nama dan kategori) di item untuk referensi nanti
+            # Ini penting untuk operasi edit/delete dari tampilan "Semua Task"
+            if self.current_task_category == "Semua Task":
+                item.setData(0, Qt.ItemDataRole.UserRole, {
+                    "original_name": task_data.get("original_name"),
+                    "category": task_data.get("category")
+                })
+            else:
+                item.setData(0, Qt.ItemDataRole.UserRole, {
+                    "original_name": task_data.get("name"),
+                    "category": self.current_task_category
+                })
         self.handlers.update_button_states()
+        
+    def reselect_task(self, task_name_to_select, category_name_to_select):
+        """Memilih kembali item task setelah operasi seperti penambahan hitungan."""
+        for i in range(self.task_tree.topLevelItemCount()):
+            item = self.task_tree.topLevelItem(i)
+            task_info = item.data(0, Qt.ItemDataRole.UserRole)
+            if (task_info.get("original_name") == task_name_to_select and 
+                task_info.get("category") == category_name_to_select):
+                self.task_tree.setCurrentItem(item)
+                break
