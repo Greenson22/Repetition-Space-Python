@@ -19,23 +19,25 @@ class UIBuilder:
 
         # Buat dan tambahkan panel-panel
         topic_panel = self._create_list_panel(
-            title="📁 Topics",
+            title="Topics",
             selection_handler=self.win.handlers.topic_selected,
             buttons=[
                 ("btn_buat_topic", "Buat", self.win.handlers.create_topic),
                 ("btn_rename_topic", "Ubah Nama", self.win.handlers.rename_topic),
                 ("btn_delete_topic", "Hapus", self.win.handlers.delete_topic),
+                ("btn_change_topic_icon", "Ubah Ikon", self.win.handlers.change_topic_icon), # <-- TAMBAHKAN INI
             ]
         )
         self.win.topic_list = topic_panel.findChild(QListWidget)
         
         subject_panel = self._create_list_panel(
-            title="📚 Subjects",
+            title="Subjects",
             selection_handler=self.win.handlers.subject_selected,
             buttons=[
                 ("btn_buat_subject", "Buat", self.win.handlers.create_subject),
                 ("btn_rename_subject", "Ubah Nama", self.win.handlers.rename_subject),
                 ("btn_delete_subject", "Hapus", self.win.handlers.delete_subject),
+                ("btn_change_subject_icon", "Ubah Ikon", self.win.handlers.change_subject_icon), # <-- TAMBAHKAN INI
             ]
         )
         self.win.subject_list = subject_panel.findChild(QListWidget)
@@ -45,17 +47,19 @@ class UIBuilder:
         splitter.addWidget(topic_panel)
         splitter.addWidget(subject_panel)
         splitter.addWidget(content_panel)
-        splitter.setSizes([200, 200, 800])
+        splitter.setSizes([200, 250, 750]) # Sesuaikan ukuran
 
     def _create_list_panel(self, title, selection_handler, buttons):
         """Membuat panel standar untuk daftar (Topics/Subjects)."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
         
+        # Hapus ikon dari judul panel karena sekarang ada di item list
         title_label = QLabel(title)
         title_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         
         list_widget = QListWidget()
+        list_widget.setFont(QFont("Segoe UI", 11)) # Perbesar font item
         list_widget.setIconSize(QSize(22, 22))
         list_widget.currentItemChanged.connect(selection_handler)
         
@@ -94,7 +98,7 @@ class UIBuilder:
             ("btn_edit_point", "Edit Point", self.win.handlers.edit_point),
             ("btn_hapus_point", "Hapus Point", self.win.handlers.delete_point),
             ("btn_ubah_tanggal", "Ubah Tanggal", self.win.handlers.change_date_manually),
-            ("btn_tandai_selesai", "Tandai Selesai", self.win.handlers.toggle_finish_status), # <-- TAMBAHKAN INI
+            ("btn_tandai_selesai", "Tandai Selesai", self.win.handlers.toggle_finish_status),
         ])
         
         layout.addWidget(title)

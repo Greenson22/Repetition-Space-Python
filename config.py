@@ -1,9 +1,15 @@
 # file: config.py
 
 BASE_PATH = "data/contents/topics"
+
+# --- TAMBAHKAN INI ---
+DEFAULT_TOPIC_ICON = "📁"
+DEFAULT_SUBJECT_ICON = "📚"
+AVAILABLE_ICONS = ["📁", "💼", "📝", "📓", "📚", "💡", "🎯", "⭐", "⚙️", "🔧"]
+# --------------------
+
 REPETITION_CODES = ["R0D", "R1D", "R3D", "R7D", "R7D1", "R7D2", "R7D3", "R30D", "Finish"]
 
-# TAMBAHKAN INI
 REPETITION_CODES_DAYS = {
     "R0D": 0,
     "R1D": 1,

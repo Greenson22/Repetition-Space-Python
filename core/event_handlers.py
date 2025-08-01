@@ -64,7 +64,8 @@ class EventHandlers:
         if not current:
             self.win.current_topic_path = None
         else:
-            self.win.current_topic_path = os.path.join(self.win.base_path, current.text())
+            topic_name = current.text().split(" ", 1)[1] # Ambil nama setelah ikon
+            self.win.current_topic_path = os.path.join(self.win.base_path, topic_name)
             self.win.refresh_subject_list()
         self.update_button_states()
 
@@ -75,7 +76,7 @@ class EventHandlers:
             self.win.current_content = None
         else:
             # Ekstrak nama subjek dari teks yang mungkin memiliki beberapa baris
-            subject_name_full = current.text()
+            subject_name_full = current.text().split(" ", 1)[1] # Ambil nama setelah ikon
             subject_name = subject_name_full.split('\n')[0]
             
             subject_file_name = f"{subject_name}.json"
@@ -97,7 +98,7 @@ class EventHandlers:
     def rename_topic(self):
         item = self.win.topic_list.currentItem()
         if not item: return
-        old_name = item.text()
+        old_name = item.text().split(" ", 1)[1]
         new_name, ok = QInputDialog.getText(self.win, "Ubah Nama Topic", "Nama Baru:", text=old_name)
         if ok and new_name and new_name != old_name:
             try:
@@ -109,7 +110,7 @@ class EventHandlers:
     def delete_topic(self):
         item = self.win.topic_list.currentItem()
         if not item: return
-        name = item.text()
+        name = item.text().split(" ", 1)[1]
         reply = QMessageBox.question(self.win, "Konfirmasi", f"Yakin ingin menghapus topic '{name}' dan semua isinya?")
         if reply == QMessageBox.StandardButton.Yes:
             try:
@@ -123,7 +124,7 @@ class EventHandlers:
         name, ok = QInputDialog.getText(self.win, "Buat Subject Baru", "Nama Subject:")
         if ok and name:
             file_path = os.path.join(self.win.current_topic_path, f"{name}.json")
-            self.win.current_content = {"content": [], "metadata": {"earliest_date": None, "earliest_code": None}}
+            self.win.current_content = {"content": [], "metadata": {"earliest_date": None, "earliest_code": None, "icon": config.DEFAULT_SUBJECT_ICON}}
             self.win.current_subject_path = file_path
             self.data_manager.save_content(file_path, self.win.current_content)
             self.win.refresh_subject_list()
@@ -132,7 +133,7 @@ class EventHandlers:
         if not self.win.current_topic_path or not self.win.subject_list.currentItem(): return
         
         # Ekstrak nama subjek dari teks yang mungkin memiliki beberapa baris
-        old_name_full = self.win.subject_list.currentItem().text()
+        old_name_full = self.win.subject_list.currentItem().text().split(" ", 1)[1]
         old_name = old_name_full.split('\n')[0]
 
         new_name, ok = QInputDialog.getText(self.win, "Ubah Nama Subject", "Nama Baru:", text=old_name)
@@ -145,12 +146,11 @@ class EventHandlers:
             except Exception as e:
                 QMessageBox.warning(self.win, "Gagal", f"Tidak dapat mengubah nama file: {e}")
 
-
     def delete_subject(self):
         if not self.win.current_topic_path or not self.win.subject_list.currentItem(): return
         
         # Ekstrak nama subjek dari teks yang mungkin memiliki beberapa baris
-        name_full = self.win.subject_list.currentItem().text()
+        name_full = self.win.subject_list.currentItem().text().split(" ", 1)[1]
         name = name_full.split('\n')[0]
 
         reply = QMessageBox.question(self.win, "Konfirmasi", f"Yakin ingin menghapus subject '{name}'?")
@@ -161,7 +161,36 @@ class EventHandlers:
                 self.win.refresh_subject_list()
             except Exception as e:
                 QMessageBox.warning(self.win, "Gagal", f"Tidak dapat menghapus file: {e}")
-    
+
+    # --- LOGIKA ICON ---
+    def change_topic_icon(self):
+        item = self.win.topic_list.currentItem()
+        if not item: return
+        
+        topic_name = item.text().split(" ", 1)[1]
+        
+        icon, ok = QInputDialog.getItem(self.win, "Pilih Ikon Topic", "Pilih ikon:", config.AVAILABLE_ICONS, 0, False)
+        
+        if ok and icon:
+            self.data_manager.save_topic_config(topic_name, {'icon': icon})
+            self.win.refresh_topic_list()
+
+    def change_subject_icon(self):
+        if not self.win.current_subject_path: return
+        
+        icon, ok = QInputDialog.getItem(self.win, "Pilih Ikon Subject", "Pilih ikon:", config.AVAILABLE_ICONS, 0, False)
+        
+        if ok and icon:
+            if not self.win.current_content:
+                self.win.current_content = self.data_manager.load_content(self.win.current_subject_path)
+            
+            if "metadata" not in self.win.current_content or self.win.current_content["metadata"] is None:
+                self.win.current_content["metadata"] = {}
+                
+            self.win.current_content["metadata"]["icon"] = icon
+            self.data_manager.save_content(self.win.current_subject_path, self.win.current_content)
+            self.win.refresh_subject_list()
+
     # --- Logika CRUD untuk Content ---
     def add_discussion(self):
         if not self.win.current_subject_path: return
@@ -322,9 +351,12 @@ class EventHandlers:
         
         self.win.btn_rename_topic.setEnabled(topic_selected)
         self.win.btn_delete_topic.setEnabled(topic_selected)
+        self.win.btn_change_topic_icon.setEnabled(topic_selected) # <-- TAMBAHKAN INI
         self.win.btn_buat_subject.setEnabled(topic_selected)
+
         self.win.btn_rename_subject.setEnabled(subject_selected)
         self.win.btn_delete_subject.setEnabled(subject_selected)
+        self.win.btn_change_subject_icon.setEnabled(subject_selected) # <-- TAMBAHKAN INI
         
         item = self.win.content_tree.currentItem()
         disc_sel, point_sel, item_can_have_date, item_can_be_finished = False, False, False, False
@@ -350,7 +382,7 @@ class EventHandlers:
         self.win.btn_edit_point.setEnabled(point_sel)
         self.win.btn_hapus_point.setEnabled(point_sel)
         self.win.btn_ubah_tanggal.setEnabled(item_can_have_date)
-        self.win.btn_tandai_selesai.setEnabled(item_can_be_finished) # Aktifkan tombol finish
+        self.win.btn_tandai_selesai.setEnabled(item_can_be_finished)
 
     # --- Bagian utilitas internal ---
     def get_item_dict(self, item_data):

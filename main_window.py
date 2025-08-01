@@ -22,7 +22,7 @@ class ContentManager(QMainWindow):
         
         self.setWindowTitle("Content Manager")
         self.setGeometry(100, 100, 1200, 650)
-        self.setWindowIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon))
+        # Hapus setWindowIcon karena ikon sekarang dinamis per topic
         
         # Inisialisasi properti
         self.base_path = config.BASE_PATH
@@ -123,10 +123,11 @@ class ContentManager(QMainWindow):
     # --- Metode untuk Refresh Tampilan ---
     def refresh_topic_list(self):
         self.topic_list.clear()
-        icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
         topics = self.data_manager.get_topics()
-        for folder in topics:
-            self.topic_list.addItem(QListWidgetItem(icon, folder))
+        for topic_data in topics:
+            # Tidak perlu QIcon, cukup tampilkan emoji sebagai teks
+            item = QListWidgetItem(f"{topic_data['icon']} {topic_data['name']}")
+            self.topic_list.addItem(item)
 
     def refresh_subject_list(self):
         # Simpan teks item yang sedang dipilih untuk diseleksi ulang nanti
@@ -138,16 +139,15 @@ class ContentManager(QMainWindow):
         self.subject_list.blockSignals(True)
         
         self.subject_list.clear()
-        icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
         subjects = self.data_manager.get_subjects(self.current_topic_path)
         item_to_reselect = None
         
-        for name, date, code in subjects:
-            display_text = name
+        for name, date, code, icon in subjects:
+            display_text = f"{icon} {name}"
             if date and code:
-                display_text += f"\n({utils.format_date_with_day(date)} - {code})"
+                display_text += f"\n  ({utils.format_date_with_day(date)} - {code})"
             
-            item = QListWidgetItem(icon, display_text)
+            item = QListWidgetItem(display_text)
             self.subject_list.addItem(item)
             
             # Jika teksnya sama dengan yang dipilih sebelumnya, tandai untuk diseleksi ulang
@@ -270,7 +270,6 @@ class ContentManager(QMainWindow):
             self.content_tree.setCurrentItem(item_to_reselect)
             
         self.handlers.update_button_states()
-
 
     def save_and_refresh_content(self):
         """Menyimpan konten saat ini dan merefresh tampilan."""

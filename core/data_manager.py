@@ -4,6 +4,7 @@ import os
 import json
 import shutil
 from datetime import datetime
+import config
 
 class DataManager:
     """Kelas untuk mengelola operasi data seperti load, save, dan delete file."""
@@ -13,8 +14,26 @@ class DataManager:
             os.makedirs(self.base_path)
 
     def get_topics(self):
-        """Mendapatkan daftar semua topic (folder)."""
-        return sorted([d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))])
+        """Mendapatkan daftar semua topic (folder) beserta ikonnya."""
+        topics = []
+        for d in sorted([d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))]):
+            config_path = os.path.join(self.base_path, d, 'topic_config.json')
+            icon = config.DEFAULT_TOPIC_ICON
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    try:
+                        data = json.load(f)
+                        icon = data.get('icon', config.DEFAULT_TOPIC_ICON)
+                    except json.JSONDecodeError:
+                        pass # Gunakan ikon default jika file config rusak
+            topics.append({'name': d, 'icon': icon})
+        return topics
+
+    def save_topic_config(self, topic_name, data):
+        """Menyimpan konfigurasi (termasuk ikon) untuk sebuah topic."""
+        config_path = os.path.join(self.base_path, topic_name, 'topic_config.json')
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
 
     def _get_earliest_date_and_code(self, file_path):
         """
@@ -61,18 +80,21 @@ class DataManager:
         return None, None
 
     def get_subjects(self, topic_path):
-        """Mendapatkan daftar semua subject (file .json) dalam sebuah topic beserta tanggal paling awal."""
+        """Mendapatkan daftar semua subject (file .json) dalam sebuah topic beserta tanggal paling awal dan ikon."""
         if not topic_path:
             return []
         
         subjects_with_dates = []
-        files = sorted([f for f in os.listdir(topic_path) if f.endswith('.json')])
+        # Ambil semua file .json KECUALI 'topic_config.json'
+        files = sorted([f for f in os.listdir(topic_path) if f.endswith('.json') and f != 'topic_config.json']) # <-- PERUBAHAN DI SINI
         for f in files:
             file_path = os.path.join(topic_path, f)
+            content = self.load_content(file_path)
+            metadata = content.get("metadata", {})
+            icon = metadata.get("icon", config.DEFAULT_SUBJECT_ICON)
             date, code = self._get_earliest_date_and_code(file_path)
-            subjects_with_dates.append((os.path.splitext(f)[0], date, code))
+            subjects_with_dates.append((os.path.splitext(f)[0], date, code, icon))
         return subjects_with_dates
-
 
     def load_content(self, file_path):
         """Memuat konten dari file JSON."""
@@ -80,7 +102,7 @@ class DataManager:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            return {"content": [], "metadata": None}
+            return {"content": [], "metadata": {"icon": config.DEFAULT_SUBJECT_ICON}}
 
     def save_content(self, file_path, content):
         """Menyimpan konten ke file JSON."""
@@ -91,6 +113,9 @@ class DataManager:
     def create_directory(self, path):
         """Membuat direktori baru."""
         os.makedirs(path)
+        # Inisialisasi file konfigurasi untuk topic baru
+        topic_name = os.path.basename(path)
+        self.save_topic_config(topic_name, {'icon': config.DEFAULT_TOPIC_ICON})
 
     def rename_path(self, old_path, new_path):
         """Mengubah nama file atau direktori."""
