@@ -93,7 +93,8 @@ class UIBuilder:
             ("btn_tambah_point", "Tambah Point", self.win.handlers.add_point),
             ("btn_edit_point", "Edit Point", self.win.handlers.edit_point),
             ("btn_hapus_point", "Hapus Point", self.win.handlers.delete_point),
-            ("btn_ubah_tanggal", "📅 Ubah Tanggal", self.win.handlers.change_date_manually),
+            ("btn_ubah_tanggal", "Ubah Tanggal", self.win.handlers.change_date_manually),
+            ("btn_tandai_selesai", "Tandai Selesai", self.win.handlers.toggle_finish_status), # <-- TAMBAHKAN INI
         ])
         
         layout.addWidget(title)

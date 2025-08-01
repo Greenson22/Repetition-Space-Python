@@ -233,18 +233,52 @@ class EventHandlers:
                 discussion["date"] = datetime.now().strftime("%Y-%m-%d")
                 discussion["repetition_code"] = "R0D"
             self.win.save_and_refresh_content()
+            
+    def toggle_finish_status(self):
+        item = self.win.content_tree.currentItem()
+        if not item: return
+
+        item_data = item.data(0, Qt.ItemDataRole.UserRole)
+        item_dict = self.get_item_dict(item_data)
+        if not item_dict: return
+        
+        # Toggle status selesai
+        current_status = item_dict.get("finished", False)
+        item_dict["finished"] = not current_status
+
+        # Jika item ditandai selesai, kosongkan tanggalnya
+        if item_dict["finished"]:
+            item_dict["date"] = None
+            message = "Status diubah menjadi Selesai dan tanggal dikosongkan."
+        else:
+            # Jika status selesai dibatalkan, tanggal akan tetap kosong kecuali diatur manual lagi.
+            message = "Status Selesai dibatalkan."
+
+        self.win.save_and_refresh_content()
+        self.win.status_bar.showMessage(message, 4000)
 
     def change_date_manually(self):
         item = self.win.content_tree.currentItem()
         if not item: return
-        item_dict = self.get_item_dict(item.data(0, Qt.ItemDataRole.UserRole))
-        if not item_dict or not item_dict.get("date"):
-            QMessageBox.information(self.win, "Info", "Item ini tidak memiliki tanggal untuk diubah.")
+        
+        item_data = item.data(0, Qt.ItemDataRole.UserRole)
+        item_dict = self.get_item_dict(item_data)
+        
+        if not item_dict: return
+
+        # Mencegah pengubahan tanggal pada diskusi yang sudah memiliki point,
+        # karena tanggalnya seharusnya diatur dari point.
+        if item_data.get("type") == "discussion" and item_dict.get("points"):
+            QMessageBox.information(self.win, "Info", "Tanggal untuk diskusi yang memiliki point diatur oleh point-pointnya.")
             return
+
         dialog = DateDialog(self.win, initial_date=item_dict.get("date"))
         if dialog.exec():
             new_date = dialog.get_selected_date()
             item_dict["date"] = new_date
+            # Jika item belum punya kode repetisi, berikan kode default.
+            if not item_dict.get("repetition_code"):
+                item_dict["repetition_code"] = "R0D"
             self.win.save_and_refresh_content()
             self.win.status_bar.showMessage(f"Tanggal berhasil diubah menjadi {new_date}", 4000)
 
@@ -281,7 +315,7 @@ class EventHandlers:
         
         self.win.content_tree.header().setSortIndicator(self.win.sort_column, self.win.sort_order)
         self.win.refresh_content_tree()
-    
+
     def update_button_states(self):
         topic_selected = self.win.topic_list.currentItem() is not None
         subject_selected = self.win.subject_list.currentItem() is not None
@@ -293,14 +327,21 @@ class EventHandlers:
         self.win.btn_delete_subject.setEnabled(subject_selected)
         
         item = self.win.content_tree.currentItem()
-        disc_sel, point_sel, date_exists = False, False, False
+        disc_sel, point_sel, item_can_have_date, item_can_be_finished = False, False, False, False
         if item and subject_selected:
             data = item.data(0, Qt.ItemDataRole.UserRole)
             if data:
                 item_dict = self.get_item_dict(data)
-                date_exists = bool(item_dict and item_dict.get("date"))
-                if data.get("type") == "discussion": disc_sel = True
-                elif data.get("type") == "point": point_sel, disc_sel = True, True
+                item_can_be_finished = True # Semua item bisa ditandai selesai
+                if data.get("type") == "discussion":
+                    disc_sel = True
+                    # Diskusi bisa diubah tanggalnya jika tidak punya points
+                    if not (item_dict and item_dict.get("points")):
+                        item_can_have_date = True
+                elif data.get("type") == "point":
+                    point_sel, disc_sel = True, True
+                    # Point selalu bisa diubah tanggalnya
+                    item_can_have_date = True
         
         self.win.btn_tambah_diskusi.setEnabled(subject_selected)
         self.win.btn_edit_diskusi.setEnabled(disc_sel and not point_sel)
@@ -308,7 +349,8 @@ class EventHandlers:
         self.win.btn_tambah_point.setEnabled(disc_sel)
         self.win.btn_edit_point.setEnabled(point_sel)
         self.win.btn_hapus_point.setEnabled(point_sel)
-        self.win.btn_ubah_tanggal.setEnabled(date_exists)
+        self.win.btn_ubah_tanggal.setEnabled(item_can_have_date)
+        self.win.btn_tandai_selesai.setEnabled(item_can_be_finished) # Aktifkan tombol finish
 
     # --- Bagian utilitas internal ---
     def get_item_dict(self, item_data):
