@@ -53,8 +53,6 @@ class UIBuilder:
             ("btn_tambah_task", "Tambah Task", self.win.handlers.add_task),
             ("btn_edit_task", "Edit Task", self.win.handlers.edit_task),
             ("btn_hapus_task", "Hapus Task", self.win.handlers.delete_task),
-            ("btn_tambah_hitung", "+", self.win.handlers.increment_task_count),
-            ("btn_kurang_hitung", "-", self.win.handlers.decrement_task_count),
         ])
 
         main_layout.addWidget(self.win.task_title_label)

@@ -475,8 +475,25 @@ class EventHandlers:
         self.win.btn_tambah_task.setEnabled(category_selected and not is_all_tasks_category)
         self.win.btn_edit_task.setEnabled(task_selected) # Bisa edit dari "Semua Task"
         self.win.btn_hapus_task.setEnabled(task_selected) # Bisa hapus dari "Semua Task"
-        self.win.btn_tambah_hitung.setEnabled(task_selected) # Bisa ubah hitungan dari "Semua Task"
-        self.win.btn_kurang_hitung.setEnabled(task_selected) # Bisa ubah hitungan dari "Semua Task"
+        
+        # --- BARU: Logika untuk tombol-tombol Task ---
+        category_selected = self.win.task_category_list.currentItem() is not None
+        task_selected = self.win.task_tree.currentItem() is not None
+        is_all_tasks_category = category_selected and self.win.task_category_list.currentItem().text() == "Semua Task"
+
+        self.win.btn_buat_kategori.setEnabled(True)
+        self.win.btn_ubah_kategori.setEnabled(category_selected and not is_all_tasks_category)
+        self.win.btn_hapus_kategori.setEnabled(category_selected and not is_all_tasks_category)
+
+        self.win.btn_tambah_task.setEnabled(category_selected and not is_all_tasks_category)
+        
+        # Tombol Edit sekarang satu-satunya cara untuk mengubah task
+        self.win.btn_edit_task.setEnabled(task_selected)
+        self.win.btn_hapus_task.setEnabled(task_selected)
+
+        # Tombol tambah/kurang hitung sudah tidak ada lagi
+        # self.win.btn_tambah_hitung.setEnabled(task_selected) 
+        # self.win.btn_kurang_hitung.setEnabled(task_selected)
 
     # --- Bagian utilitas internal ---
     def get_item_dict(self, item_data):
@@ -613,14 +630,6 @@ class EventHandlers:
         if reply == QMessageBox.StandardButton.Yes:
             self.data_manager.delete_task(category_name, task_name)
             self.win.refresh_task_list()
-
-    def increment_task_count(self):
-        """Menambah hitungan task yang dipilih."""
-        self._adjust_task_count(1)
-
-    def decrement_task_count(self):
-        """Mengurangi hitungan task yang dipilih."""
-        self._adjust_task_count(-1)
         
     def _adjust_task_count(self, amount):
         """Logika internal untuk mengubah hitungan task."""
