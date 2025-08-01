@@ -141,7 +141,7 @@ class ContentManager(QMainWindow):
     def show_about_dialog(self):
         """Menampilkan dialog 'About' dengan informasi aplikasi."""
         about_text = """
-        <b>Content Manager v1.0</b>
+        <b>Content Manager v1.1</b>
         <p>Aplikasi ini dibuat oleh:</p>
         <p><b>Frendy Rikal Gerung S.Kom</b></p>
         <p>
