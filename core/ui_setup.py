@@ -17,73 +17,119 @@ class UIBuilder:
         main_splitter = QSplitter(self.win)
         self.win.setCentralWidget(main_splitter)
 
-        # Buat dan tambahkan panel-panel
-        topic_panel = self._create_list_panel(
-            title="Topics",
-            selection_handler=self.win.handlers.topic_selected,
-            buttons=[
-                ("btn_buat_topic", "Buat", self.win.handlers.create_topic),
-                ("btn_rename_topic", "Ubah Nama", self.win.handlers.rename_topic),
-                ("btn_delete_topic", "Hapus", self.win.handlers.delete_topic),
-                ("btn_change_topic_icon", "Ubah Ikon", self.win.handlers.change_topic_icon),
-            ],
-            list_type="topic"
-        )
-        self.win.topic_list = topic_panel.findChild(QListWidget)
-        
-        subject_panel = self._create_list_panel(
-            title="Subjects",
-            selection_handler=self.win.handlers.subject_selected,
-            buttons=[
-                ("btn_buat_subject", "Buat", self.win.handlers.create_subject),
-                ("btn_rename_subject", "Ubah Nama", self.win.handlers.rename_subject),
-                ("btn_delete_subject", "Hapus", self.win.handlers.delete_subject),
-                ("btn_change_subject_icon", "Ubah Ikon", self.win.handlers.change_subject_icon),
-            ],
-            list_type="subject"
-        )
-        self.win.subject_list = subject_panel.findChild(QListWidget)
+        # --- Membuat Panel-Panel dengan Tata Letak Baru ---
 
-        # Gunakan metode baru untuk membuat panel task & kategori yang terintegrasi
+        # 1. Panel Paling Kiri: Tasks & Kategori
         task_and_category_panel = self._create_task_and_category_panel()
         
+        # 2. Panel Tengah: Topics & Subjects
+        topic_and_subject_panel = self._create_topic_and_subject_panel()
+
+        # 3. Panel Paling Kanan: Konten
         content_panel = self._create_content_panel()
 
-        main_splitter.addWidget(topic_panel)
-        main_splitter.addWidget(subject_panel)
+        # --- Menambahkan Panel ke Splitter Utama ---
         main_splitter.addWidget(task_and_category_panel)
+        main_splitter.addWidget(topic_and_subject_panel)
         main_splitter.addWidget(content_panel)
-        main_splitter.setSizes([200, 250, 300, 450])
+        
+        # Mengatur ukuran awal panel-panel
+        main_splitter.setSizes([250, 250, 600])
 
-    def _create_list_panel(self, title, selection_handler, buttons, list_type):
-        """Membuat panel standar untuk daftar (Topics/Subjects)."""
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
-        
-        title_label = QLabel(title)
-        # Simpan label judul ke window utama untuk scaling
-        if list_type == "topic":
-            self.win.topic_title_label = title_label
-        elif list_type == "subject":
-            self.win.subject_title_label = title_label
+    def _create_task_and_category_panel(self):
+        """Membuat panel gabungan untuk tasks (atas) dan kategori (bawah)."""
+        main_panel = QWidget()
+        main_layout = QVBoxLayout(main_panel)
+        main_layout.setContentsMargins(9, 9, 9, 9)
 
-        list_widget = QListWidget()
-        list_widget.currentItemChanged.connect(selection_handler)
+        # --- Bagian Tasks (Atas) ---
+        self.win.task_title_label = QLabel("✔️ Tasks")
+        self.win.task_tree = QTreeWidget()
+        self.win.task_tree.setHeaderLabels(["Task", "Count", "Date"])
+        self.win.task_tree.header().resizeSection(0, 150)
+        self.win.task_tree.currentItemChanged.connect(self.win.handlers.update_button_states)
         
-        button_layout = self._create_button_layout(buttons)
+        task_buttons = self._create_button_layout([
+            ("btn_tambah_task", "Tambah Task", self.win.handlers.add_task),
+            ("btn_edit_task", "Edit Task", self.win.handlers.edit_task),
+            ("btn_hapus_task", "Hapus Task", self.win.handlers.delete_task),
+            ("btn_tambah_hitung", "+", self.win.handlers.increment_task_count),
+            ("btn_kurang_hitung", "-", self.win.handlers.decrement_task_count),
+        ])
+
+        main_layout.addWidget(self.win.task_title_label)
+        main_layout.addWidget(self.win.task_tree)
+        main_layout.addLayout(task_buttons)
+
+        # --- Pemisah ---
+        main_layout.addWidget(self._create_separator())
+
+        # --- Bagian Kategori (Bawah) ---
+        self.win.task_category_title_label = QLabel("Kategori Task")
+        self.win.task_category_list = QListWidget()
+        self.win.task_category_list.currentItemChanged.connect(self.win.handlers.task_category_selected)
         
-        layout.addWidget(title_label)
-        layout.addWidget(list_widget)
-        layout.addLayout(button_layout)
-        return panel
+        category_buttons = self._create_button_layout([
+            ("btn_buat_kategori", "Buat", self.win.handlers.create_task_category),
+            ("btn_ubah_kategori", "Ubah Nama", self.win.handlers.rename_task_category),
+            ("btn_hapus_kategori", "Hapus", self.win.handlers.delete_task_category),
+        ])
+
+        main_layout.addWidget(self.win.task_category_title_label)
+        main_layout.addWidget(self.win.task_category_list)
+        main_layout.addLayout(category_buttons)
+
+        return main_panel
+
+    def _create_topic_and_subject_panel(self):
+        """Membuat panel gabungan untuk topics (atas) dan subjects (bawah)."""
+        main_panel = QWidget()
+        main_layout = QVBoxLayout(main_panel)
+        main_layout.setContentsMargins(9, 9, 9, 9)
+
+        # --- Bagian Topics (Atas) ---
+        self.win.topic_title_label = QLabel("Topics")
+        self.win.topic_list = QListWidget()
+        self.win.topic_list.currentItemChanged.connect(self.win.handlers.topic_selected)
+        
+        topic_buttons = self._create_button_layout([
+            ("btn_buat_topic", "Buat", self.win.handlers.create_topic),
+            ("btn_rename_topic", "Ubah Nama", self.win.handlers.rename_topic),
+            ("btn_delete_topic", "Hapus", self.win.handlers.delete_topic),
+            ("btn_change_topic_icon", "Ubah Ikon", self.win.handlers.change_topic_icon),
+        ])
+
+        main_layout.addWidget(self.win.topic_title_label)
+        main_layout.addWidget(self.win.topic_list)
+        main_layout.addLayout(topic_buttons)
+
+        # --- Pemisah ---
+        main_layout.addWidget(self._create_separator())
+
+        # --- Bagian Subjects (Bawah) ---
+        self.win.subject_title_label = QLabel("Subjects")
+        self.win.subject_list = QListWidget()
+        self.win.subject_list.currentItemChanged.connect(self.win.handlers.subject_selected)
+        
+        subject_buttons = self._create_button_layout([
+            ("btn_buat_subject", "Buat", self.win.handlers.create_subject),
+            ("btn_rename_subject", "Ubah Nama", self.win.handlers.rename_subject),
+            ("btn_delete_subject", "Hapus", self.win.handlers.delete_subject),
+            ("btn_change_subject_icon", "Ubah Ikon", self.win.handlers.change_subject_icon),
+        ])
+
+        main_layout.addWidget(self.win.subject_title_label)
+        main_layout.addWidget(self.win.subject_list)
+        main_layout.addLayout(subject_buttons)
+        
+        return main_panel
 
     def _create_content_panel(self):
         """Membuat panel utama untuk menampilkan konten."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
         
-        title = QLabel("📝 Content")
-        self.win.content_title_label = title # Simpan untuk scaling
+        self.win.content_title_label = QLabel("📝 Content")
         
         self.win.content_tree = QTreeWidget()
         self.win.content_tree.setHeaderLabels(["Content", "Date", "Code"])
@@ -108,7 +154,7 @@ class UIBuilder:
             ("btn_tandai_selesai", "Tandai Selesai", self.win.handlers.toggle_finish_status),
         ])
         
-        layout.addWidget(title)
+        layout.addWidget(self.win.content_title_label)
         layout.addWidget(self.win.content_tree)
         layout.addWidget(QLabel("Manajemen Diskusi:"))
         layout.addLayout(discussion_buttons)
@@ -126,56 +172,9 @@ class UIBuilder:
             layout.addWidget(btn)
         return layout
 
-    def _create_task_and_category_panel(self):
-        """Membuat panel gabungan untuk tasks (atas) dan kategori (bawah)."""
-        # Panel utama dengan layout vertikal
-        main_panel = QWidget()
-        main_layout = QVBoxLayout(main_panel)
-        main_layout.setContentsMargins(9, 9, 9, 9)
-
-        # --- Bagian Tasks (Atas) ---
-        self.win.task_title_label = QLabel("✔️ Tasks")
-        
-        self.win.task_tree = QTreeWidget()
-        self.win.task_tree.setHeaderLabels(["Task", "Count", "Date"])
-        self.win.task_tree.header().resizeSection(0, 150)
-        # Hubungkan event pemilihan item untuk mengaktifkan/menonaktifkan tombol
-        self.win.task_tree.currentItemChanged.connect(self.win.handlers.update_button_states)
-        
-        task_buttons = self._create_button_layout([
-            ("btn_tambah_task", "Tambah Task", self.win.handlers.add_task),
-            ("btn_edit_task", "Edit Task", self.win.handlers.edit_task),
-            ("btn_hapus_task", "Hapus Task", self.win.handlers.delete_task),
-            ("btn_tambah_hitung", "+", self.win.handlers.increment_task_count),
-            ("btn_kurang_hitung", "-", self.win.handlers.decrement_task_count),
-        ])
-
-        # Tambahkan semua widget task ke layout utama
-        main_layout.addWidget(self.win.task_title_label)
-        main_layout.addWidget(self.win.task_tree)
-        main_layout.addLayout(task_buttons)
-
-        # Tambahkan garis pemisah
+    def _create_separator(self):
+        """Membuat widget garis pemisah horizontal."""
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setFrameShadow(QFrame.Shadow.Sunken)
-        main_layout.addWidget(separator)
-
-        # --- Bagian Kategori (Bawah) ---
-        self.win.task_category_title_label = QLabel("Kategori Task")
-        
-        self.win.task_category_list = QListWidget()
-        self.win.task_category_list.currentItemChanged.connect(self.win.handlers.task_category_selected)
-        
-        category_buttons = self._create_button_layout([
-            ("btn_buat_kategori", "Buat", self.win.handlers.create_task_category),
-            ("btn_ubah_kategori", "Ubah Nama", self.win.handlers.rename_task_category),
-            ("btn_hapus_kategori", "Hapus", self.win.handlers.delete_task_category),
-        ])
-
-        # Tambahkan semua widget kategori ke layout utama
-        main_layout.addWidget(self.win.task_category_title_label)
-        main_layout.addWidget(self.win.task_category_list)
-        main_layout.addLayout(category_buttons)
-
-        return main_panel
+        return separator
