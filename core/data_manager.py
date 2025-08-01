@@ -1,4 +1,4 @@
-# file: core/data_manager.py
+# file: test/core/data_manager.py
 
 import os
 import json
@@ -27,9 +27,7 @@ class DataManager:
     def ensure_task_file_exists(self):
         """Memastikan file task JSON ada. Jika tidak, buat struktur default."""
         if not os.path.exists(self.task_data_file):
-            # Membuat direktori jika belum ada
             self.ensure_directory_exists(os.path.dirname(self.task_data_file))
-            # Membuat file dengan struktur data awal (kosong)
             self.save_tasks_data({"categories": {}})
 
     # --- Metode untuk Topics dan Subjects (Konten Utama) ---
@@ -73,12 +71,9 @@ class DataManager:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            # Untuk konten subject, kembalikan struktur default
             if file_path != self.task_data_file:
                 return {"content": [], "metadata": {}}
-            # Untuk file task, kembalikan struktur task default
             return {"categories": {}}
-
 
     def save_content(self, file_path, data):
         """Menyimpan data ke file JSON generik."""
@@ -106,7 +101,6 @@ class DataManager:
         """Membuat backup dari semua folder topic dan file task ke dalam satu file zip."""
         base_dir_for_zip = os.path.dirname(self.base_path)
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Backup folder topics
             topics_path = self.base_path
             if os.path.exists(topics_path):
                 for root, _, files in os.walk(topics_path):
@@ -114,18 +108,71 @@ class DataManager:
                         file_path = os.path.join(root, file)
                         zipf.write(file_path, os.path.relpath(file_path, base_dir_for_zip))
             
-            # Backup file my_tasks.json
             if os.path.exists(self.task_data_file):
                 zipf.write(self.task_data_file, os.path.relpath(self.task_data_file, base_dir_for_zip))
 
-
     def import_backup_zip(self, zip_path):
-        """Mengimpor dan mengekstrak backup zip ke base_path."""
-        base_dir_for_zip = os.path.dirname(self.base_path)
-        with zipfile.ZipFile(zip_path, 'r') as zipf:
-            zipf.extractall(base_dir_for_zip)
+        """
+        Mengimpor backup zip.
+        - Untuk tasks: menimpa data yang ada.
+        - Untuk topics: menambahkan topic baru, dan jika ada nama yang sama,
+          topic dari backup akan diganti namanya dengan tambahan ' (new)'.
+        """
+        temp_extract_path = os.path.join(os.path.dirname(self.base_path), "temp_backup_extract")
+        if os.path.exists(temp_extract_path):
+            shutil.rmtree(temp_extract_path)
+        os.makedirs(temp_extract_path)
 
-    # --- Metode Baru untuk Tasks (Bekerja dengan Satu File) ---
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zipf:
+                zipf.extractall(temp_extract_path)
+
+            # --- Proses Tasks: Timpa file task yang lama dengan yang baru dari backup ---
+            backup_task_file_rel_path = os.path.relpath(self.task_data_file, os.path.dirname(self.base_path))
+            backup_task_file_abs_path = os.path.join(temp_extract_path, backup_task_file_rel_path)
+            
+            if os.path.exists(backup_task_file_abs_path):
+                # Hapus file task lama jika ada
+                if os.path.exists(self.task_data_file):
+                    os.remove(self.task_data_file)
+                # Pindahkan file task dari backup ke lokasi seharusnya
+                shutil.move(backup_task_file_abs_path, self.task_data_file)
+
+            # --- Proses Topics: Tambahkan topic baru, ganti nama jika duplikat ---
+            backup_topics_dir_rel_path = os.path.relpath(self.base_path, os.path.dirname(self.base_path))
+            backup_topics_dir_abs_path = os.path.join(temp_extract_path, backup_topics_dir_rel_path)
+
+            if os.path.isdir(backup_topics_dir_abs_path):
+                existing_topics = [d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))]
+                
+                for topic_name in os.listdir(backup_topics_dir_abs_path):
+                    source_topic_path = os.path.join(backup_topics_dir_abs_path, topic_name)
+                    if not os.path.isdir(source_topic_path):
+                        continue
+
+                    dest_topic_name = topic_name
+                    # Jika topic sudah ada, tambahkan suffix '(new)'
+                    if topic_name in existing_topics:
+                        dest_topic_name = f"{topic_name} (new)"
+                        # Antisipasi jika "topic (new)" juga sudah ada
+                        counter = 1
+                        while os.path.exists(os.path.join(self.base_path, dest_topic_name)):
+                            counter += 1
+                            dest_topic_name = f"{topic_name} (new {counter})"
+
+                    dest_topic_path = os.path.join(self.base_path, dest_topic_name)
+                    shutil.move(source_topic_path, dest_topic_path)
+
+        finally:
+            # Bersihkan direktori sementara
+            if os.path.exists(temp_extract_path):
+                shutil.rmtree(temp_extract_path)
+
+            # Pastikan direktori dan file utama ada setelah proses
+            self.ensure_directory_exists(self.base_path)
+            self.ensure_task_file_exists()
+
+    # --- Metode untuk Tasks (Bekerja dengan Satu File) ---
 
     def load_tasks_data(self):
         """Memuat seluruh data task dari file my_tasks.json."""
@@ -142,7 +189,6 @@ class DataManager:
         
         categories_data = []
         for name in sorted(categories.keys()):
-            # Di masa depan, ikon bisa disimpan per kategori di dalam JSON
             categories_data.append({'name': name, 'icon': '📂'})
         return categories_data
 
@@ -191,14 +237,13 @@ class DataManager:
         for category_name, category_details in tasks_data.get("categories", {}).items():
             for task_name, task_details in category_details.get("tasks", {}).items():
                  all_tasks.append({
-                    'name': f"[{category_name}] {task_name}", # Tambahkan prefix kategori
+                    'name': f"[{category_name}] {task_name}",
                     'count': task_details.get('count', 0),
                     'date': task_details.get('date', ''),
-                    'original_name': task_name, # Simpan nama asli dan kategori
+                    'original_name': task_name,
                     'category': category_name
                 })
         return sorted(all_tasks, key=lambda x: x['name'])
-
 
     def save_task(self, category_name, task_name, data):
         """Menyimpan data sebuah task ke dalam kategori di file JSON."""
