@@ -82,7 +82,7 @@ class ContentManager(QMainWindow):
         elif current_theme == "dark": dark_action.setChecked(True)
         else: system_action.setChecked(True)
         
-        # --- BARU: Menu Skala ---
+        # --- Menu Skala ---
         scale_menu = menu_bar.addMenu("Skala")
         self.scale_group = QActionGroup(self)
         self.scale_group.setExclusive(True)
@@ -92,7 +92,6 @@ class ContentManager(QMainWindow):
             action.triggered.connect(lambda checked, name=scale_name: self.set_scale(name))
             scale_menu.addAction(action)
             self.scale_group.addAction(action)
-        # ------------------------
 
         # --- Menu Filter Tanggal ---
         filter_menu = menu_bar.addMenu("Filter")
@@ -116,9 +115,15 @@ class ContentManager(QMainWindow):
 
         # --- Menu Backup ---
         backup_menu = menu_bar.addMenu("Backup")
+        
         backup_action = QAction("Buat Cadangan...", self)
         backup_action.triggered.connect(self.handlers.backup_all_topics)
         backup_menu.addAction(backup_action)
+        
+        # --- BARU: Aksi Impor ---
+        import_action = QAction("Impor Cadangan...", self)
+        import_action.triggered.connect(self.handlers.import_backup)
+        backup_menu.addAction(import_action)
 
 
     def set_date_filter(self, filter_type):
@@ -144,7 +149,7 @@ class ContentManager(QMainWindow):
                  stylesheet = config.LIGHT_STYLESHEET
         self.setStyleSheet(stylesheet)
     
-    # --- BARU: Metode untuk Skala UI ---
+    # --- Metode untuk Skala UI ---
     def set_scale(self, scale_name):
         """Menyimpan dan menerapkan skala UI yang dipilih."""
         self.settings.setValue("ui_scale", scale_name)
@@ -194,7 +199,6 @@ class ContentManager(QMainWindow):
         self.refresh_topic_list()
         self.refresh_subject_list()
         self.refresh_content_tree()
-    # -----------------------------------
 
     # --- Metode untuk Refresh Tampilan ---
     def refresh_topic_list(self):

@@ -3,6 +3,7 @@
 import os
 import json
 import shutil
+import tempfile
 from datetime import datetime
 import config
 
@@ -15,14 +16,46 @@ class DataManager:
 
     def create_backup_zip(self, zip_path):
         """Membuat arsip zip dari direktori base_path."""
-        # Pastikan path untuk zip file tidak menyertakan ekstensi .zip,
-        # karena make_archive akan menambahkannya secara otomatis.
         shutil.make_archive(
             base_name=os.path.splitext(zip_path)[0],
             format='zip',
-            root_dir=os.path.dirname(self.base_path), # Direktori 'di atas' topics
-            base_dir=os.path.basename(self.base_path) # Nama folder 'topics' itu sendiri
+            root_dir=os.path.dirname(self.base_path),
+            base_dir=os.path.basename(self.base_path)
         )
+
+    def import_backup_zip(self, zip_path):
+        """Mengekstrak dan mengimpor topics dari file zip."""
+        # Buat direktori temporary untuk mengekstrak file
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Ekstrak arsip
+            shutil.unpack_archive(zip_path, temp_dir, 'zip')
+
+            # Path ke folder 'topics' di dalam temp_dir
+            extracted_topics_path = os.path.join(temp_dir, 'topics')
+
+            # Pastikan folder 'topics' ada setelah ekstraksi
+            if not os.path.exists(extracted_topics_path):
+                # Jika tidak ada folder 'topics', asumsikan konten ada di root temp_dir
+                extracted_topics_path = temp_dir
+            
+            # Iterasi melalui setiap item di direktori hasil ekstraksi
+            for topic_name in os.listdir(extracted_topics_path):
+                source_topic_path = os.path.join(extracted_topics_path, topic_name)
+
+                # Pastikan itu adalah direktori
+                if not os.path.isdir(source_topic_path):
+                    continue
+
+                destination_topic_name = topic_name
+                destination_topic_path = os.path.join(self.base_path, destination_topic_name)
+
+                # Cek jika topic dengan nama yang sama sudah ada, tambahkan prefix 'new'
+                while os.path.exists(destination_topic_path):
+                    destination_topic_name = f"new {destination_topic_name}"
+                    destination_topic_path = os.path.join(self.base_path, destination_topic_name)
+
+                # Pindahkan folder topic dari temp_dir ke direktori utama
+                shutil.move(source_topic_path, destination_topic_path)
 
     def get_topics(self):
         """Mendapatkan daftar semua topic (folder) beserta ikonnya."""
@@ -36,7 +69,7 @@ class DataManager:
                         data = json.load(f)
                         icon = data.get('icon', config.DEFAULT_TOPIC_ICON)
                     except json.JSONDecodeError:
-                        pass # Gunakan ikon default jika file config rusak
+                        pass
             topics.append({'name': d, 'icon': icon})
         return topics
 
@@ -54,18 +87,14 @@ class DataManager:
         content = self.load_content(file_path)
         metadata = content.get("metadata")
 
-        # Coba baca dari metadata terlebih dahulu
         if metadata and "earliest_date" in metadata:
-            # Pastikan earliest_date tidak None
             if metadata.get("earliest_date") is not None:
                 return metadata.get("earliest_date"), metadata.get("earliest_code")
 
-        # Fallback: Hitung manual jika metadata tidak ada/kosong
         earliest_date_obj = None
         earliest_code_val = None
 
         for item in content.get("content", []):
-            # Cek tanggal di discussion
             if item.get("date"):
                 try:
                     current_date = datetime.strptime(item["date"], "%Y-%m-%d")
@@ -75,7 +104,6 @@ class DataManager:
                 except (ValueError, TypeError):
                     continue
 
-            # Cek tanggal di points
             for point in item.get("points", []):
                 if point.get("date"):
                     try:
@@ -96,8 +124,7 @@ class DataManager:
             return []
         
         subjects_with_dates = []
-        # Ambil semua file .json KECUALI 'topic_config.json'
-        files = sorted([f for f in os.listdir(topic_path) if f.endswith('.json') and f != 'topic_config.json']) # <-- PERUBAHAN DI SINI
+        files = sorted([f for f in os.listdir(topic_path) if f.endswith('.json') and f != 'topic_config.json'])
         for f in files:
             file_path = os.path.join(topic_path, f)
             content = self.load_content(file_path)
@@ -124,7 +151,6 @@ class DataManager:
     def create_directory(self, path):
         """Membuat direktori baru."""
         os.makedirs(path)
-        # Inisialisasi file konfigurasi untuk topic baru
         topic_name = os.path.basename(path)
         self.save_topic_config(topic_name, {'icon': config.DEFAULT_TOPIC_ICON})
 

@@ -19,11 +19,9 @@ class EventHandlers:
 
     def backup_all_topics(self):
         """Membuat backup semua topic dalam format zip."""
-        # Menentukan nama file default, contoh: backup-2023-10-27_10-30-00.zip
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         default_filename = f"backup-topics-{timestamp}.zip"
 
-        # Membuka dialog untuk menyimpan file
         save_path, _ = QFileDialog.getSaveFileName(
             self.win,
             "Simpan Backup Topics",
@@ -33,7 +31,6 @@ class EventHandlers:
 
         if save_path:
             try:
-                # Memanggil data_manager untuk membuat zip
                 self.data_manager.create_backup_zip(save_path)
                 QMessageBox.information(
                     self.win,
@@ -46,7 +43,33 @@ class EventHandlers:
                     "Backup Gagal",
                     f"Terjadi kesalahan saat membuat backup:\n{e}"
                 )
+    
+    def import_backup(self):
+        """Mengimpor topics dari file backup zip."""
+        open_path, _ = QFileDialog.getOpenFileName(
+            self.win,
+            "Pilih File Backup untuk Diimpor",
+            "",
+            "Zip Files (*.zip)"
+        )
 
+        if open_path:
+            try:
+                # Memanggil data_manager untuk melakukan impor
+                self.data_manager.import_backup_zip(open_path)
+                QMessageBox.information(
+                    self.win,
+                    "Impor Berhasil",
+                    "Topics dari file backup berhasil diimpor."
+                )
+                # Refresh topic list untuk menampilkan data baru
+                self.win.refresh_topic_list()
+            except Exception as e:
+                QMessageBox.critical(
+                    self.win,
+                    "Impor Gagal",
+                    f"Terjadi kesalahan saat mengimpor backup:\n{e}"
+                )
 
     def update_earliest_date_in_metadata(self):
         """Mencari tanggal & kode paling awal dan menyimpannya di metadata."""
@@ -362,14 +385,9 @@ class EventHandlers:
             self.win.refresh_content_tree()
             return
         
-        # --- PERUBAHAN DIMULAI DI SINI ---
-        
-        # Jika item tidak punya tanggal (misal: baru dibuat atau statusnya 'finished'),
-        # gunakan tanggal hari ini sebagai basis.
         current_date_str = item_dict.get("date")
         if not current_date_str:
             current_date = datetime.now()
-            # Langsung set tanggal saat ini ke item jika belum ada dan beri kode default
             item_dict["date"] = current_date.strftime("%Y-%m-%d")
             if not item_dict.get("repetition_code"):
                  item_dict["repetition_code"] = "R0D"
@@ -379,7 +397,6 @@ class EventHandlers:
         days_to_add = config.REPETITION_CODES_DAYS.get(new_code, 0)
         new_date_str = (current_date + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
 
-        # Tidak perlu konfirmasi jika kode sama
         if new_code == item_dict.get("repetition_code") and current_date.strftime("%Y-%m-%d") == item_dict.get("date"):
             self.win.refresh_content_tree()
             return
@@ -395,9 +412,7 @@ class EventHandlers:
             item_dict["repetition_code"] = new_code
             self.win.save_and_refresh_content()
         else:
-            # Kembalikan tampilan ke state sebelum perubahan jika dibatalkan
             self.win.refresh_content_tree()
-        # --- PERUBAHAN BERAKHIR DI SINI ---
 
 
     # --- Logika Pengurutan & State ---
@@ -417,12 +432,12 @@ class EventHandlers:
         
         self.win.btn_rename_topic.setEnabled(topic_selected)
         self.win.btn_delete_topic.setEnabled(topic_selected)
-        self.win.btn_change_topic_icon.setEnabled(topic_selected) # <-- TAMBAHKAN INI
+        self.win.btn_change_topic_icon.setEnabled(topic_selected)
         self.win.btn_buat_subject.setEnabled(topic_selected)
 
         self.win.btn_rename_subject.setEnabled(subject_selected)
         self.win.btn_delete_subject.setEnabled(subject_selected)
-        self.win.btn_change_subject_icon.setEnabled(subject_selected) # <-- TAMBAHKAN INI
+        self.win.btn_change_subject_icon.setEnabled(subject_selected)
         
         item = self.win.content_tree.currentItem()
         disc_sel, point_sel, item_can_have_date, item_can_be_finished = False, False, False, False
@@ -430,15 +445,13 @@ class EventHandlers:
             data = item.data(0, Qt.ItemDataRole.UserRole)
             if data:
                 item_dict = self.get_item_dict(data)
-                item_can_be_finished = True # Semua item bisa ditandai selesai
+                item_can_be_finished = True
                 if data.get("type") == "discussion":
                     disc_sel = True
-                    # Diskusi bisa diubah tanggalnya jika tidak punya points
                     if not (item_dict and item_dict.get("points")):
                         item_can_have_date = True
                 elif data.get("type") == "point":
                     point_sel, disc_sel = True, True
-                    # Point selalu bisa diubah tanggalnya
                     item_can_have_date = True
         
         self.win.btn_tambah_diskusi.setEnabled(subject_selected)
@@ -466,10 +479,9 @@ class EventHandlers:
     def create_repetition_combobox(self, item, column, current_code, item_data):
         combo = QComboBox()
         combo.addItems(config.REPETITION_CODES)
-        if current_code: # Hanya set jika ada kode
+        if current_code:
              combo.setCurrentText(current_code)
         
-        # Selalu aktifkan combo box agar bisa memicu perubahan
         item_dict = self.get_item_dict(item_data)
         can_have_date = False
         if item_data.get("type") == "point":
