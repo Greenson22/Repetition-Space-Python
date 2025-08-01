@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem, QFileDialog
+    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem, QFileDialog, QSplitter
 )
 from PyQt6.QtGui import QFont, QAction, QActionGroup, QIcon
 from PyQt6.QtCore import Qt, QSize, QSettings
@@ -27,9 +27,11 @@ class ContentManager(QMainWindow):
         
         # Inisialisasi properti
         self.base_path = config.BASE_PATH
+        self.task_base_path = config.TASK_BASE_PATH # BARU
         self.current_topic_path = None
         self.current_subject_path = None
         self.current_content = None
+        self.current_task_category = None # BARU
         self.sort_column = 1
         self.sort_order = Qt.SortOrder.AscendingOrder
         self.settings = QSettings("MyCompany", "ContentManager")
@@ -38,6 +40,7 @@ class ContentManager(QMainWindow):
 
         # Inisialisasi modul-modul
         self.data_manager = DataManager(self.base_path)
+        self.data_manager.task_base_path = self.task_base_path # Atur path task
         self.handlers = EventHandlers(self)
         self.ui_builder = UIBuilder(self)
         
@@ -51,6 +54,7 @@ class ContentManager(QMainWindow):
         self.load_theme()
         self.load_scale() # Muat skala setelah UI dibuat
         self.refresh_topic_list()
+        self.refresh_task_category_list() # BARU
         self.handlers.update_button_states()
         self.content_tree.header().setSortIndicator(self.sort_column, self.sort_order)
 
@@ -120,7 +124,6 @@ class ContentManager(QMainWindow):
         backup_action.triggered.connect(self.handlers.backup_all_topics)
         backup_menu.addAction(backup_action)
         
-        # --- BARU: Aksi Impor ---
         import_action = QAction("Impor Cadangan...", self)
         import_action.triggered.connect(self.handlers.import_backup)
         backup_menu.addAction(import_action)
@@ -187,6 +190,8 @@ class ContentManager(QMainWindow):
         self.topic_title_label.setFont(title_font)
         self.subject_title_label.setFont(title_font)
         self.content_title_label.setFont(title_font)
+        self.task_category_title_label.setFont(title_font) # BARU
+        self.task_title_label.setFont(title_font) # BARU
 
         # Terapkan ke widget list dan tree
         self.topic_list.setFont(list_font)
@@ -194,11 +199,17 @@ class ContentManager(QMainWindow):
         self.subject_list.setFont(list_font)
         self.subject_list.setIconSize(q_icon_size)
         self.content_tree.setFont(list_font)
+        self.task_category_list.setFont(list_font) # BARU
+        self.task_category_list.setIconSize(q_icon_size) # BARU
+        self.task_tree.setFont(list_font) # BARU
+
 
         # Refresh tampilan untuk memastikan ukuran diterapkan dengan benar
         self.refresh_topic_list()
         self.refresh_subject_list()
         self.refresh_content_tree()
+        self.refresh_task_category_list() # BARU
+        self.refresh_task_list() # BARU
 
     # --- Metode untuk Refresh Tampilan ---
     def refresh_topic_list(self):
@@ -348,37 +359,46 @@ class ContentManager(QMainWindow):
     # --- BARU: Metode untuk Refresh Tampilan Task ---
     def refresh_task_category_list(self):
         """Merefresh daftar kategori task."""
+        current_item_text = None
+        if self.task_category_list.currentItem():
+            current_item_text = self.task_category_list.currentItem().text()
+
+        self.task_category_list.blockSignals(True)
         self.task_category_list.clear()
-        # Tambahkan "Semua Task" secara default
-        all_tasks_item = QListWidgetItem("📂 Semua Task")
-        self.task_category_list.addItem(all_tasks_item)
 
         categories = self.data_manager.get_task_categories()
+        item_to_reselect = None
         for cat_data in categories:
-            item = QListWidgetItem(f"{cat_data['icon']} {cat_data['name']}")
+            display_text = f"{cat_data['icon']} {cat_data['name']}"
+            item = QListWidgetItem(display_text)
             self.task_category_list.addItem(item)
-        
-        # Pilih "Semua Task" sebagai default jika belum ada yang dipilih
-        if not self.task_category_list.currentItem():
-            self.task_category_list.setCurrentItem(all_tasks_item)
+            if display_text == current_item_text:
+                item_to_reselect = item
+
+        if item_to_reselect:
+            self.task_category_list.setCurrentItem(item_to_reselect)
+        elif self.task_category_list.count() > 0:
+            self.task_category_list.setCurrentRow(0) # Pilih item pertama jika tidak ada yang ter-reselect
+
+        self.task_category_list.blockSignals(False)
+        # Manually trigger the selection change to load tasks for the default/reselected category
+        if self.task_category_list.currentItem():
+             self.handlers.task_category_selected(self.task_category_list.currentItem(), None)
+
 
     def refresh_task_list(self):
         """Merefresh daftar task berdasarkan kategori yang dipilih."""
         self.task_tree.clear()
         
-        if not self.current_task_category:
+        if not self.current_task_category or self.current_task_category == "Semua Task":
+            self.handlers.update_button_states()
             return
 
-        if self.current_task_category == "Semua Task":
-            tasks = self.data_manager.get_all_tasks()
-        else:
-            tasks = self.data_manager.get_tasks(self.current_task_category)
+        tasks = self.data_manager.get_tasks(self.current_task_category)
             
         for task_data in tasks:
             item = QTreeWidgetItem(self.task_tree)
             item.setText(0, task_data['name'])
             item.setText(1, str(task_data['count']))
-            item.setText(2, task_data['date'])
-    
-    # ... (sisa dari file main_window.py, termasuk modifikasi pada `update_button_states`) ...
-    # Anda perlu menambahkan logika untuk mengaktifkan/menonaktifkan tombol-tombol task baru di sana.
+            item.setText(2, task_data.get('date', ''))
+        self.handlers.update_button_states()

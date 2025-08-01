@@ -14,8 +14,8 @@ class UIBuilder:
 
     def setup_ui(self):
         """Membangun UI utama dan menempatkannya di window utama."""
-        splitter = QSplitter(self.win)
-        self.win.setCentralWidget(splitter)
+        main_splitter = QSplitter(self.win)
+        self.win.setCentralWidget(main_splitter)
 
         # Buat dan tambahkan panel-panel
         topic_panel = self._create_list_panel(
@@ -27,7 +27,7 @@ class UIBuilder:
                 ("btn_delete_topic", "Hapus", self.win.handlers.delete_topic),
                 ("btn_change_topic_icon", "Ubah Ikon", self.win.handlers.change_topic_icon),
             ],
-            type="topic" # Tandai tipe panel
+            list_type="topic"
         )
         self.win.topic_list = topic_panel.findChild(QListWidget)
         
@@ -40,34 +40,31 @@ class UIBuilder:
                 ("btn_delete_subject", "Hapus", self.win.handlers.delete_subject),
                 ("btn_change_subject_icon", "Ubah Ikon", self.win.handlers.change_subject_icon),
             ],
-            type="subject" # Tandai tipe panel
+            list_type="subject"
         )
         self.win.subject_list = subject_panel.findChild(QListWidget)
 
-        # task_panel = self._create_task_panel()
+        task_panel = self._create_task_panel()
         content_panel = self._create_content_panel()
 
-        # 3. BARU: Membuat dan MENAMBAHKAN panel Task
-        # PASTIKAN DUA BARIS INI ADA DAN TIDAK DI-COMMENT
-        
-        # splitter.addWidget(task_panel)
-        splitter.addWidget(topic_panel)
-        splitter.addWidget(subject_panel)
-        splitter.addWidget(content_panel)
-        splitter.setSizes([200, 250, 750])
+        main_splitter.addWidget(topic_panel)
+        main_splitter.addWidget(subject_panel)
+        main_splitter.addWidget(task_panel)
+        main_splitter.addWidget(content_panel)
+        main_splitter.setSizes([200, 250, 300, 450])
 
-    def _create_list_panel(self, title, selection_handler, buttons, type):
+    def _create_list_panel(self, title, selection_handler, buttons, list_type):
         """Membuat panel standar untuk daftar (Topics/Subjects)."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
         
         title_label = QLabel(title)
         # Simpan label judul ke window utama untuk scaling
-        if type == "topic":
+        if list_type == "topic":
             self.win.topic_title_label = title_label
-        else:
+        elif list_type == "subject":
             self.win.subject_title_label = title_label
-        
+
         list_widget = QListWidget()
         list_widget.currentItemChanged.connect(selection_handler)
         
@@ -127,35 +124,44 @@ class UIBuilder:
             layout.addWidget(btn)
         return layout
 
-    # --- BARU: Fungsi untuk membuat panel Task ---
     def _create_task_panel(self):
         """Membuat panel untuk kategori dan daftar task."""
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
+        main_panel = QWidget()
+        main_layout = QVBoxLayout(main_panel)
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Panel Kategori Task
-        category_panel = self._create_list_panel(
-            title="Kategori Task",
-            selection_handler=self.win.handlers.task_category_selected,
-            buttons=[
-                ("btn_buat_kategori", "Buat", self.win.handlers.create_task_category),
-                ("btn_ubah_kategori", "Ubah Nama", self.win.handlers.rename_task_category),
-                ("btn_hapus_kategori", "Hapus", self.win.handlers.delete_task_category),
-            ],
-            type="task_category"
-        )
-        self.win.task_category_list = category_panel.findChild(QListWidget)
+        splitter = QSplitter()
+        main_layout.addWidget(splitter)
+
+        # == BAGIAN KIRI SPLITTER (KATEGORI) ==
+        category_widget = QWidget()
+        category_layout = QVBoxLayout(category_widget)
         
-        # Panel Daftar Task
+        # Secara eksplisit buat QLabel dan simpan untuk scaling
+        self.win.task_category_title_label = QLabel("Kategori Task")
+        
+        self.win.task_category_list = QListWidget()
+        self.win.task_category_list.currentItemChanged.connect(self.win.handlers.task_category_selected)
+        
+        category_buttons = self._create_button_layout([
+            ("btn_buat_kategori", "Buat", self.win.handlers.create_task_category),
+            ("btn_ubah_kategori", "Ubah Nama", self.win.handlers.rename_task_category),
+            ("btn_hapus_kategori", "Hapus", self.win.handlers.delete_task_category),
+        ])
+        
+        category_layout.addWidget(self.win.task_category_title_label)
+        category_layout.addWidget(self.win.task_category_list)
+        category_layout.addLayout(category_buttons)
+        
+        # == BAGIAN KANAN SPLITTER (TASK) ==
         task_list_panel = QWidget()
         task_list_layout = QVBoxLayout(task_list_panel)
         
-        task_title = QLabel("✔️ Tasks")
-        self.win.task_title_label = task_title # Simpan untuk scaling
+        self.win.task_title_label = QLabel("✔️ Tasks")
         
         self.win.task_tree = QTreeWidget()
         self.win.task_tree.setHeaderLabels(["Task", "Count", "Date"])
-        self.win.task_tree.header().resizeSection(0, 200)
+        self.win.task_tree.header().resizeSection(0, 150)
         
         task_buttons = self._create_button_layout([
             ("btn_tambah_task", "Tambah Task", self.win.handlers.add_task),
@@ -165,10 +171,13 @@ class UIBuilder:
             ("btn_kurang_hitung", "-", self.win.handlers.decrement_task_count),
         ])
 
-        task_list_layout.addWidget(task_title)
+        task_list_layout.addWidget(self.win.task_title_label)
         task_list_layout.addWidget(self.win.task_tree)
         task_list_layout.addLayout(task_buttons)
-        
-        layout.addWidget(category_panel)
-        layout.addWidget(task_list_panel)
-        return panel
+
+        # Tambahkan kedua panel ke splitter
+        splitter.addWidget(category_widget)
+        splitter.addWidget(task_list_panel)
+        splitter.setSizes([150, 200])
+
+        return main_panel

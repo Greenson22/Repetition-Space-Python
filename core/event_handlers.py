@@ -4,7 +4,6 @@ import os
 from datetime import datetime, timedelta
 
 from PyQt6.QtWidgets import QMessageBox, QInputDialog, QComboBox, QFileDialog
-
 from PyQt6.QtCore import Qt
 
 import utils
@@ -463,6 +462,22 @@ class EventHandlers:
         self.win.btn_ubah_tanggal.setEnabled(item_can_have_date)
         self.win.btn_tandai_selesai.setEnabled(item_can_be_finished)
 
+        # --- BARU: Logika untuk tombol-tombol Task ---
+        category_selected = self.win.task_category_list.currentItem() is not None
+        task_selected = self.win.task_tree.currentItem() is not None
+        is_all_tasks_category = category_selected and self.win.task_category_list.currentItem().text().endswith(" Semua Task")
+
+        self.win.btn_buat_kategori.setEnabled(True) # Selalu bisa buat kategori baru
+        self.win.btn_ubah_kategori.setEnabled(category_selected and not is_all_tasks_category)
+        self.win.btn_hapus_kategori.setEnabled(category_selected and not is_all_tasks_category)
+
+        self.win.btn_tambah_task.setEnabled(category_selected and not is_all_tasks_category)
+        self.win.btn_edit_task.setEnabled(task_selected and not is_all_tasks_category)
+        self.win.btn_hapus_task.setEnabled(task_selected and not is_all_tasks_category)
+        self.win.btn_tambah_hitung.setEnabled(task_selected and not is_all_tasks_category)
+        self.win.btn_kurang_hitung.setEnabled(task_selected and not is_all_tasks_category)
+
+
     # --- Bagian utilitas internal ---
     def get_item_dict(self, item_data):
         if not item_data: return None
@@ -504,7 +519,12 @@ class EventHandlers:
         if not current:
             self.win.current_task_category = None
         else:
-            category_name = current.text().split(" ", 1)[1]
+            # Mengatasi "Semua Task" yang tidak punya icon di depan
+            text = current.text()
+            if text.startswith("📂 "):
+                category_name = text.split(" ", 1)[1]
+            else:
+                category_name = text # Untuk "Semua Task"
             self.win.current_task_category = category_name
         self.win.refresh_task_list()
         self.update_button_states()
@@ -520,11 +540,17 @@ class EventHandlers:
         """Mengubah nama kategori task yang dipilih."""
         item = self.win.task_category_list.currentItem()
         if not item: return
+        # Handle "Semua Task"
+        if item.text().endswith("Semua Task"):
+             QMessageBox.warning(self.win, "Gagal", "Kategori 'Semua Task' tidak dapat diubah namanya.")
+             return
+
         old_name = item.text().split(" ", 1)[1]
         new_name, ok = QInputDialog.getText(self.win, "Ubah Nama Kategori", "Nama Baru:", text=old_name)
         if ok and new_name and new_name != old_name:
             self.data_manager.rename_task_category(old_name, new_name)
             self.win.refresh_task_category_list()
+            self.win.refresh_task_list() # Refresh task list juga
 
     def delete_task_category(self):
         """Menghapus kategori task yang dipilih."""
@@ -542,12 +568,12 @@ class EventHandlers:
     def add_task(self):
         """Menambahkan task baru ke kategori yang dipilih."""
         if not self.win.current_task_category or self.win.current_task_category == "Semua Task":
-            QMessageBox.warning(self.win, "Gagal", "Pilih kategori selain 'Semua Task' untuk menambahkan task.")
+            QMessageBox.warning(self.win, "Gagal", "Pilih atau buat kategori terlebih dahulu untuk menambahkan task.")
             return
         
         task_name, ok = QInputDialog.getText(self.win, "Tambah Task Baru", "Nama Task:")
         if ok and task_name:
-            date_str = datetime.now().strftime("%d-%m-%Y")
+            date_str = datetime.now().strftime("%Y-%m-%d")
             new_task = {'count': 0, 'date': date_str}
             self.data_manager.save_task(self.win.current_task_category, task_name, new_task)
             self.win.refresh_task_list()
@@ -601,4 +627,10 @@ class EventHandlers:
         task_data['count'] = max(0, current_count + amount) # Pastikan tidak negatif
         
         self.data_manager.save_task(self.win.current_task_category, task_name, task_data)
+        
+        # Seleksi ulang item setelah refresh
         self.win.refresh_task_list()
+        for i in range(self.win.task_tree.topLevelItemCount()):
+            if self.win.task_tree.topLevelItem(i).text(0) == task_name:
+                self.win.task_tree.setCurrentItem(self.win.task_tree.topLevelItem(i))
+                break
