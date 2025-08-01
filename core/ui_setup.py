@@ -1,4 +1,4 @@
-# file: test/ui_setup.py
+# file: test/core/ui_setup.py
 
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QLabel, QListWidget, 
@@ -25,8 +25,9 @@ class UIBuilder:
                 ("btn_buat_topic", "Buat", self.win.handlers.create_topic),
                 ("btn_rename_topic", "Ubah Nama", self.win.handlers.rename_topic),
                 ("btn_delete_topic", "Hapus", self.win.handlers.delete_topic),
-                ("btn_change_topic_icon", "Ubah Ikon", self.win.handlers.change_topic_icon), # <-- TAMBAHKAN INI
-            ]
+                ("btn_change_topic_icon", "Ubah Ikon", self.win.handlers.change_topic_icon),
+            ],
+            type="topic" # Tandai tipe panel
         )
         self.win.topic_list = topic_panel.findChild(QListWidget)
         
@@ -37,8 +38,9 @@ class UIBuilder:
                 ("btn_buat_subject", "Buat", self.win.handlers.create_subject),
                 ("btn_rename_subject", "Ubah Nama", self.win.handlers.rename_subject),
                 ("btn_delete_subject", "Hapus", self.win.handlers.delete_subject),
-                ("btn_change_subject_icon", "Ubah Ikon", self.win.handlers.change_subject_icon), # <-- TAMBAHKAN INI
-            ]
+                ("btn_change_subject_icon", "Ubah Ikon", self.win.handlers.change_subject_icon),
+            ],
+            type="subject" # Tandai tipe panel
         )
         self.win.subject_list = subject_panel.findChild(QListWidget)
 
@@ -47,20 +49,21 @@ class UIBuilder:
         splitter.addWidget(topic_panel)
         splitter.addWidget(subject_panel)
         splitter.addWidget(content_panel)
-        splitter.setSizes([200, 250, 750]) # Sesuaikan ukuran
+        splitter.setSizes([200, 250, 750])
 
-    def _create_list_panel(self, title, selection_handler, buttons):
+    def _create_list_panel(self, title, selection_handler, buttons, type):
         """Membuat panel standar untuk daftar (Topics/Subjects)."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
         
-        # Hapus ikon dari judul panel karena sekarang ada di item list
         title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        # Simpan label judul ke window utama untuk scaling
+        if type == "topic":
+            self.win.topic_title_label = title_label
+        else:
+            self.win.subject_title_label = title_label
         
         list_widget = QListWidget()
-        list_widget.setFont(QFont("Segoe UI", 11)) # Perbesar font item
-        list_widget.setIconSize(QSize(22, 22))
         list_widget.currentItemChanged.connect(selection_handler)
         
         button_layout = self._create_button_layout(buttons)
@@ -76,7 +79,7 @@ class UIBuilder:
         layout = QVBoxLayout(panel)
         
         title = QLabel("📝 Content")
-        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        self.win.content_title_label = title # Simpan untuk scaling
         
         self.win.content_tree = QTreeWidget()
         self.win.content_tree.setHeaderLabels(["Content", "Date", "Code"])
@@ -115,6 +118,6 @@ class UIBuilder:
         for attr, text, func in buttons_config:
             btn = QPushButton(text)
             btn.clicked.connect(func)
-            setattr(self.win, attr, btn) # Tetapkan tombol sebagai atribut window utama
+            setattr(self.win, attr, btn)
             layout.addWidget(btn)
         return layout

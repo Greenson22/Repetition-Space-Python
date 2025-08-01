@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QListWidgetItem, QStatusBar, QStyle, QTreeWidget, QTreeWidgetItem, QMenuBar, QRadioButton
+    QMainWindow, QListWidgetItem, QStatusBar, QStyle, QTreeWidget, QTreeWidgetItem, QMenuBar, QRadioButton, QApplication
 )
 from PyQt6.QtGui import QFont, QAction, QActionGroup
 from PyQt6.QtCore import Qt, QSize, QSettings
@@ -22,17 +22,17 @@ class ContentManager(QMainWindow):
         
         self.setWindowTitle("Content Manager")
         self.setGeometry(100, 100, 1200, 650)
-        # Hapus setWindowIcon karena ikon sekarang dinamis per topic
         
         # Inisialisasi properti
         self.base_path = config.BASE_PATH
         self.current_topic_path = None
         self.current_subject_path = None
         self.current_content = None
-        self.sort_column = 1  # Default sort by Date
+        self.sort_column = 1
         self.sort_order = Qt.SortOrder.AscendingOrder
         self.settings = QSettings("MyCompany", "ContentManager")
-        self.date_filter = "all" # Opsi filter: "all" atau "today"
+        self.date_filter = "all"
+        self.scale_config = {} # Inisialisasi properti skala
 
         # Inisialisasi modul-modul
         self.data_manager = DataManager(self.base_path)
@@ -40,13 +40,14 @@ class ContentManager(QMainWindow):
         self.ui_builder = UIBuilder(self)
         
         # Setup UI
-        self._create_menu_bar()
         self.ui_builder.setup_ui()
+        self._create_menu_bar()
         self.setStatusBar(QStatusBar())
         self.status_bar = self.statusBar()
         
-        # Load data awal
+        # Load data dan preferensi awal
         self.load_theme()
+        self.load_scale() # Muat skala setelah UI dibuat
         self.refresh_topic_list()
         self.handlers.update_button_states()
         self.content_tree.header().setSortIndicator(self.sort_column, self.sort_order)
@@ -78,6 +79,18 @@ class ContentManager(QMainWindow):
         if current_theme == "light": light_action.setChecked(True)
         elif current_theme == "dark": dark_action.setChecked(True)
         else: system_action.setChecked(True)
+        
+        # --- BARU: Menu Skala ---
+        scale_menu = menu_bar.addMenu("Skala")
+        self.scale_group = QActionGroup(self)
+        self.scale_group.setExclusive(True)
+
+        for scale_name in config.UI_SCALE_CONFIG.keys():
+            action = QAction(scale_name, self, checkable=True)
+            action.triggered.connect(lambda checked, name=scale_name: self.set_scale(name))
+            scale_menu.addAction(action)
+            self.scale_group.addAction(action)
+        # ------------------------
 
         # --- Menu Filter Tanggal ---
         filter_menu = menu_bar.addMenu("Filter")
@@ -110,32 +123,83 @@ class ContentManager(QMainWindow):
 
     def load_theme(self):
         theme = self.settings.value("theme", "system")
+        stylesheet = ""
         if theme == "dark":
-            self.setStyleSheet(config.DARK_STYLESHEET)
+            stylesheet = config.DARK_STYLESHEET
         elif theme == "light":
-            self.setStyleSheet(config.LIGHT_STYLESHEET)
+            stylesheet = config.LIGHT_STYLESHEET
         else: # System
             if self.palette().window().color().lightness() < 128:
-                 self.setStyleSheet(config.DARK_STYLESHEET)
+                 stylesheet = config.DARK_STYLESHEET
             else:
-                 self.setStyleSheet(config.LIGHT_STYLESHEET)
+                 stylesheet = config.LIGHT_STYLESHEET
+        self.setStyleSheet(stylesheet)
+    
+    # --- BARU: Metode untuk Skala UI ---
+    def set_scale(self, scale_name):
+        """Menyimpan dan menerapkan skala UI yang dipilih."""
+        self.settings.setValue("ui_scale", scale_name)
+        self.load_scale()
+
+    def load_scale(self):
+        """Memuat konfigurasi skala dari pengaturan dan menerapkannya."""
+        scale_name = self.settings.value("ui_scale", config.DEFAULT_SCALE)
+        self.scale_config = config.UI_SCALE_CONFIG[scale_name]
+        
+        # Update tanda centang di menu
+        for action in self.scale_group.actions():
+            if action.text() == scale_name:
+                action.setChecked(True)
+                break
+        
+        self.apply_scaling()
+
+    def apply_scaling(self):
+        """Menerapkan ukuran font dan ikon ke seluruh widget."""
+        if not self.scale_config:
+            return
+
+        # Ambil ukuran dari config
+        list_font_size = self.scale_config['list_font_size']
+        title_font_size = self.scale_config['title_font_size']
+        icon_size = self.scale_config['icon_size']
+
+        # Siapkan objek Font dan Size
+        list_font = QFont("Segoe UI", list_font_size)
+        title_font = QFont("Segoe UI", title_font_size, QFont.Weight.Bold)
+        q_icon_size = QSize(icon_size, icon_size)
+
+        # Terapkan ke label judul
+        self.topic_title_label.setFont(title_font)
+        self.subject_title_label.setFont(title_font)
+        self.content_title_label.setFont(title_font)
+
+        # Terapkan ke widget list dan tree
+        self.topic_list.setFont(list_font)
+        self.topic_list.setIconSize(q_icon_size)
+        self.subject_list.setFont(list_font)
+        self.subject_list.setIconSize(q_icon_size)
+        self.content_tree.setFont(list_font)
+
+        # Refresh tampilan untuk memastikan ukuran diterapkan dengan benar
+        self.refresh_topic_list()
+        self.refresh_subject_list()
+        self.refresh_content_tree()
+    # -----------------------------------
 
     # --- Metode untuk Refresh Tampilan ---
     def refresh_topic_list(self):
         self.topic_list.clear()
         topics = self.data_manager.get_topics()
         for topic_data in topics:
-            # Tidak perlu QIcon, cukup tampilkan emoji sebagai teks
             item = QListWidgetItem(f"{topic_data['icon']} {topic_data['name']}")
             self.topic_list.addItem(item)
 
     def refresh_subject_list(self):
-        # Simpan teks item yang sedang dipilih untuk diseleksi ulang nanti
         current_item_text = None
         if self.subject_list.currentItem():
             current_item_text = self.subject_list.currentItem().text()
 
-        # Blokir sinyal untuk mencegah 'subject_selected' terpanggil saat me-refresh list
         self.subject_list.blockSignals(True)
         
         self.subject_list.clear()
@@ -150,19 +214,15 @@ class ContentManager(QMainWindow):
             item = QListWidgetItem(display_text)
             self.subject_list.addItem(item)
             
-            # Jika teksnya sama dengan yang dipilih sebelumnya, tandai untuk diseleksi ulang
             if display_text == current_item_text:
                 item_to_reselect = item
         
-        # Seleksi ulang item yang sebelumnya dipilih
         if item_to_reselect:
             self.subject_list.setCurrentItem(item_to_reselect)
 
-        # Buka kembali blokir sinyal
         self.subject_list.blockSignals(False)
 
     def refresh_content_tree(self):
-        # --- Simpan State ---
         expanded_indices = set()
         selected_item_data = None
 
@@ -178,29 +238,24 @@ class ContentManager(QMainWindow):
                     if item_data and item_data.get("type") == "discussion":
                         expanded_indices.add(item_data.get("index"))
         
-        # --- Proses Refresh ---
         self.content_tree.clear()
         if not self.current_subject_path: return
         
         self.current_content = self.data_manager.load_content(self.current_subject_path)
         discussions = self.current_content.get("content", [])
         
-        # --- Logika Filter Tanggal ---
         today_str = datetime.now().strftime("%Y-%m-%d")
         filtered_discussions = []
         if self.date_filter == "today":
             for index, disc_data in enumerate(discussions):
                 original_discussion = {"data": disc_data, "original_index": index}
                 
-                # Cek tanggal diskusi utama
                 if disc_data.get("date") == today_str and not disc_data.get("points"):
                     filtered_discussions.append(original_discussion)
                     continue
 
-                # Cek tanggal pada points
                 matching_points = [p for p in disc_data.get("points", []) if p.get("date") == today_str]
                 if matching_points:
-                    # Buat salinan diskusi hanya dengan point yang cocok
                     new_disc_data = disc_data.copy()
                     new_disc_data["points"] = matching_points
                     filtered_discussions.append({"data": new_disc_data, "original_index": index})
@@ -248,7 +303,6 @@ class ContentManager(QMainWindow):
                 child_item.setText(0, point_data.get("point_text", "Point kosong"))
                 child_item.setText(1, utils.format_date_with_day(point_data.get("date", "")))
                 
-                # Cari index asli dari point
                 original_point_index = -1
                 original_points = self.current_content["content"][original_index].get("points", [])
                 for idx, orig_point in enumerate(original_points):

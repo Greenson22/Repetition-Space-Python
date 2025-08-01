@@ -2,11 +2,30 @@
 
 BASE_PATH = "data/contents/topics"
 
-# --- TAMBAHKAN INI ---
 DEFAULT_TOPIC_ICON = "📁"
 DEFAULT_SUBJECT_ICON = "📚"
 AVAILABLE_ICONS = ["📁", "💼", "📝", "📓", "📚", "💡", "🎯", "⭐", "⚙️", "🔧"]
-# --------------------
+
+# --- BARU: Konfigurasi untuk Skala UI ---
+UI_SCALE_CONFIG = {
+    "Kecil": {
+        "list_font_size": 10,
+        "title_font_size": 13,
+        "icon_size": 20
+    },
+    "Sedang": {
+        "list_font_size": 11,
+        "title_font_size": 14,
+        "icon_size": 22
+    },
+    "Besar": {
+        "list_font_size": 13,
+        "title_font_size": 16,
+        "icon_size": 26
+    }
+}
+DEFAULT_SCALE = "Sedang"
+# ----------------------------------------
 
 REPETITION_CODES = ["R0D", "R1D", "R3D", "R7D", "R7D1", "R7D2", "R7D3", "R30D", "Finish"]
 
@@ -22,7 +41,7 @@ REPETITION_CODES_DAYS = {
 }
 
 DARK_STYLESHEET = """
-    QMainWindow, QWidget, QDialog { background-color: #2E3440; color: #D8DEE9; font-family: Segoe UI; font-size: 10pt; }
+    QMainWindow, QWidget, QDialog { background-color: #2E3440; color: #D8DEE9; font-family: Segoe UI; }
     QSplitter::handle { background-color: #4C566A; width: 3px; }
     QLabel { color: #ECEFF4; padding-bottom: 5px; }
     QListWidget, QTreeWidget { background-color: #3B4252; border: 1px solid #4C566A; border-radius: 5px; padding: 5px; }
@@ -41,7 +60,7 @@ DARK_STYLESHEET = """
 """
 
 LIGHT_STYLESHEET = """
-    QMainWindow, QWidget, QDialog { background-color: #F0F0F0; color: #000000; font-family: Segoe UI; font-size: 10pt; }
+    QMainWindow, QWidget, QDialog { background-color: #F0F0F0; color: #000000; font-family: Segoe UI; }
     QSplitter::handle { background-color: #D0D0D0; width: 3px; }
     QLabel { color: #000000; padding-bottom: 5px; }
     QListWidget, QTreeWidget { background-color: #FFFFFF; border: 1px solid #D0D0D0; border-radius: 5px; padding: 5px; }
