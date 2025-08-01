@@ -9,6 +9,8 @@ from PyQt6.QtCore import Qt
 import utils
 import config
 from ui_components import DateDialog
+# Import the new TaskEditDialog
+from core.ui_components.task_edit_dialog import TaskEditDialog
 
 class EventHandlers:
     """Kelas yang berisi semua logika untuk event handling di ContentManager."""
@@ -594,28 +596,53 @@ class EventHandlers:
             self.win.refresh_task_list()
 
     def edit_task(self):
-        """Mengedit nama task yang dipilih."""
+        """Membuka dialog untuk mengedit nama, hitungan, dan tanggal task."""
         item = self.win.task_tree.currentItem()
         if not item: return
 
         # Dapatkan data asli dari user role
         task_info = item.data(0, Qt.ItemDataRole.UserRole)
+        if not task_info: return
+        
         old_task_name = task_info.get("original_name")
         category_name = task_info.get("category")
+
+        # Muat data task yang ada untuk mengisi dialog
+        tasks_data = self.data_manager.load_tasks_data()
+        original_task_data = tasks_data.get("categories", {}).get(category_name, {}).get("tasks", {}).get(old_task_name)
+
+        if not original_task_data:
+            QMessageBox.warning(self.win, "Error", "Data task tidak ditemukan.")
+            return
+
+        # Siapkan data untuk dialog, termasuk nama asli
+        dialog_data = original_task_data.copy()
+        dialog_data['name'] = old_task_name
         
-        new_task_name, ok = QInputDialog.getText(self.win, "Edit Nama Task", "Nama Baru:", text=old_task_name)
+        dialog = TaskEditDialog(dialog_data, self.win)
         
-        if ok and new_task_name and new_task_name != old_task_name:
-            # Dapatkan data task yang ada
-            tasks_data = self.data_manager.load_tasks_data()
-            task_data = tasks_data["categories"][category_name]["tasks"].get(old_task_name)
+        if dialog.exec():
+            updated_data = dialog.get_data()
+            new_task_name = updated_data.get("name")
             
-            if task_data:
-                # Hapus task lama
+            # Buat data task baru tanpa nama
+            new_task_details = {
+                "count": updated_data.get("count"),
+                "date": updated_data.get("date")
+            }
+
+            # Jika nama tidak berubah, cukup simpan data baru
+            if new_task_name == old_task_name:
+                self.data_manager.save_task(category_name, old_task_name, new_task_details)
+            else:
+                # Jika nama berubah, hapus yang lama dan buat yang baru
                 self.data_manager.delete_task(category_name, old_task_name)
-                # Simpan dengan nama baru
-                self.data_manager.save_task(category_name, new_task_name, task_data)
-                self.win.refresh_task_list()
+                self.data_manager.save_task(category_name, new_task_name, new_task_details)
+            
+            self.win.refresh_task_list()
+            # Coba pilih kembali task yang baru di-edit
+            self.win.reselect_task(new_task_name, category_name)
+
 
     def delete_task(self):
         """Menghapus task yang dipilih."""
