@@ -108,8 +108,13 @@ class ContentManager(QMainWindow):
         self.subject_list.clear()
         icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
         subjects = self.data_manager.get_subjects(self.current_topic_path)
-        for file in subjects:
-            self.subject_list.addItem(QListWidgetItem(icon, os.path.splitext(file)[0]))
+        for name, date, code in subjects:
+            display_text = name
+            if date and code:
+                display_text += f"\n({utils.format_date_with_day(date)} - {code})"
+            item = QListWidgetItem(icon, display_text)
+            self.subject_list.addItem(item)
+
 
     def refresh_content_tree(self):
         self.content_tree.clear()

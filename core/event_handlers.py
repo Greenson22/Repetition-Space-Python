@@ -34,10 +34,15 @@ class EventHandlers:
             self.win.current_subject_path = None
             self.win.current_content = None
         else:
-            subject_name = f"{current.text()}.json"
-            self.win.current_subject_path = os.path.join(self.win.current_topic_path, subject_name)
+            # Ekstrak nama subjek dari teks yang mungkin memiliki beberapa baris
+            subject_name_full = current.text()
+            subject_name = subject_name_full.split('\n')[0]
+            
+            subject_file_name = f"{subject_name}.json"
+            self.win.current_subject_path = os.path.join(self.win.current_topic_path, subject_file_name)
             self.win.refresh_content_tree()
         self.update_button_states()
+
 
     # --- Logika CRUD untuk Topics & Subjects ---
     def create_topic(self):
@@ -85,7 +90,11 @@ class EventHandlers:
 
     def rename_subject(self):
         if not self.win.current_topic_path or not self.win.subject_list.currentItem(): return
-        old_name = self.win.subject_list.currentItem().text()
+        
+        # Ekstrak nama subjek dari teks yang mungkin memiliki beberapa baris
+        old_name_full = self.win.subject_list.currentItem().text()
+        old_name = old_name_full.split('\n')[0]
+
         new_name, ok = QInputDialog.getText(self.win, "Ubah Nama Subject", "Nama Baru:", text=old_name)
         if ok and new_name and new_name != old_name:
             old_file = os.path.join(self.win.current_topic_path, f"{old_name}.json")
@@ -96,9 +105,14 @@ class EventHandlers:
             except Exception as e:
                 QMessageBox.warning(self.win, "Gagal", f"Tidak dapat mengubah nama file: {e}")
 
+
     def delete_subject(self):
         if not self.win.current_topic_path or not self.win.subject_list.currentItem(): return
-        name = self.win.subject_list.currentItem().text()
+        
+        # Ekstrak nama subjek dari teks yang mungkin memiliki beberapa baris
+        name_full = self.win.subject_list.currentItem().text()
+        name = name_full.split('\n')[0]
+
         reply = QMessageBox.question(self.win, "Konfirmasi", f"Yakin ingin menghapus subject '{name}'?")
         if reply == QMessageBox.StandardButton.Yes:
             file_path = os.path.join(self.win.current_topic_path, f"{name}.json")

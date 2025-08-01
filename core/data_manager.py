@@ -16,11 +16,45 @@ class DataManager:
         """Mendapatkan daftar semua topic (folder)."""
         return sorted([d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))])
 
+    def _get_earliest_date_and_code(self, file_path):
+        """Mendapatkan tanggal dan kode repetisi paling awal dari sebuah file subject."""
+        content = self.load_content(file_path)
+        earliest_date = None
+        earliest_code = None
+
+        for item in content.get("content", []):
+            # Cek tanggal di discussion
+            if item.get("date"):
+                current_date = datetime.strptime(item["date"], "%Y-%m-%d")
+                if earliest_date is None or current_date < earliest_date:
+                    earliest_date = current_date
+                    earliest_code = item.get("repetition_code")
+
+            # Cek tanggal di points
+            for point in item.get("points", []):
+                if point.get("date"):
+                    current_date = datetime.strptime(point["date"], "%Y-%m-%d")
+                    if earliest_date is None or current_date < earliest_date:
+                        earliest_date = current_date
+                        earliest_code = point.get("repetition_code")
+        
+        if earliest_date:
+            return earliest_date.strftime("%Y-%m-%d"), earliest_code
+        return None, None
+
     def get_subjects(self, topic_path):
-        """Mendapatkan daftar semua subject (file .json) dalam sebuah topic."""
+        """Mendapatkan daftar semua subject (file .json) dalam sebuah topic beserta tanggal paling awal."""
         if not topic_path:
             return []
-        return sorted([f for f in os.listdir(topic_path) if f.endswith('.json')])
+        
+        subjects_with_dates = []
+        files = sorted([f for f in os.listdir(topic_path) if f.endswith('.json')])
+        for f in files:
+            file_path = os.path.join(topic_path, f)
+            date, code = self._get_earliest_date_and_code(file_path)
+            subjects_with_dates.append((os.path.splitext(f)[0], date, code))
+        return subjects_with_dates
+
 
     def load_content(self, file_path):
         """Memuat konten dari file JSON."""
