@@ -124,6 +124,9 @@ class EventHandlers:
             topic_name = current.text().split(" ", 1)[1] # Ambil nama setelah ikon
             self.win.current_topic_path = os.path.join(self.win.base_path, topic_name)
             self.win.refresh_subject_list()
+            # BARU: Otomatis pilih subject pertama jika ada
+            if self.win.subject_list.count() > 0:
+                self.win.subject_list.setCurrentRow(0)
         self.update_button_states()
 
     def subject_selected(self, current, previous):
