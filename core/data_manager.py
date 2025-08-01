@@ -8,6 +8,20 @@ from datetime import datetime
 
 import config
 
+# Fungsi bantuan untuk pengurutan tanggal
+def _get_sort_key_for_date(item):
+    """Mengembalikan objek datetime untuk pengurutan. Item tanpa tanggal diletakkan di akhir."""
+    date_str = item.get('date', '')
+    if date_str:
+        try:
+            # Menggunakan format tanggal yang konsisten
+            return datetime.strptime(date_str, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            # Jika format tanggal salah, anggap sebagai tanggal di masa depan jauh
+            return datetime.max
+    # Jika tidak ada tanggal, letakkan di akhir
+    return datetime.max
+
 class DataManager:
     """Kelas untuk mengelola semua operasi file dan data."""
     def __init__(self, base_path):
@@ -51,19 +65,25 @@ class DataManager:
         return topics_data
 
     def get_subjects(self, topic_path):
-        """Mendapatkan daftar semua subject dalam sebuah topic."""
+        """Mendapatkan daftar semua subject dalam sebuah topic, diurutkan berdasarkan tanggal terlama."""
         if not topic_path or not os.path.exists(topic_path):
             return []
         subjects = []
-        for f in sorted(os.listdir(topic_path)):
+        for f in os.listdir(topic_path):
             if f.endswith('.json') and f != 'topic_config.json':
                 content = self.load_content(os.path.join(topic_path, f))
                 metadata = content.get('metadata', {})
                 date = metadata.get('earliest_date')
                 code = metadata.get('earliest_code')
                 icon = metadata.get('icon', config.DEFAULT_SUBJECT_ICON)
-                subjects.append((f.replace('.json', ''), date, code, icon))
-        return subjects
+                subjects.append({'name': f.replace('.json', ''), 'date': date, 'code': code, 'icon': icon})
+        
+        # Mengurutkan subject berdasarkan tanggal (yang terlama lebih dulu)
+        subjects.sort(key=_get_sort_key_for_date)
+        
+        # Mengubah format kembali ke tuple untuk kompatibilitas
+        return [(s['name'], s['date'], s['code'], s['icon']) for s in subjects]
+
 
     def load_content(self, file_path):
         """Memuat konten dari file JSON generik."""
@@ -213,8 +233,12 @@ class DataManager:
             del tasks_data["categories"][name]
             self.save_tasks_data(tasks_data)
 
-    def get_tasks(self, category_name):
-        """Mendapatkan semua task dari sebuah kategori dalam file JSON."""
+    def get_tasks(self, category_name, sort_by='date', sort_order='asc'):
+        """
+        Mendapatkan semua task dari sebuah kategori dengan opsi pengurutan.
+        sort_by: 'date', 'name', 'count'
+        sort_order: 'asc' (ascending), 'desc' (descending)
+        """
         tasks_data = self.load_tasks_data()
         category = tasks_data.get("categories", {}).get(category_name)
         
@@ -222,16 +246,30 @@ class DataManager:
             return []
             
         tasks_list = []
-        for task_name, task_details in sorted(category.get("tasks", {}).items()):
+        for task_name, task_details in category.get("tasks", {}).items():
             tasks_list.append({
                 'name': task_name,
                 'count': task_details.get('count', 0),
                 'date': task_details.get('date', '')
             })
+
+        # Logika pengurutan
+        reverse_order = (sort_order == 'desc')
+        if sort_by == 'date':
+            tasks_list.sort(key=_get_sort_key_for_date, reverse=reverse_order)
+        elif sort_by == 'count':
+            tasks_list.sort(key=lambda x: x['count'], reverse=reverse_order)
+        else: # default ke 'name'
+            tasks_list.sort(key=lambda x: x['name'].lower(), reverse=reverse_order)
+            
         return tasks_list
     
-    def get_all_tasks(self):
-        """Mendapatkan semua task dari semua kategori."""
+    def get_all_tasks(self, sort_by='date', sort_order='asc'):
+        """
+        Mendapatkan semua task dari semua kategori dengan opsi pengurutan.
+        sort_by: 'date', 'name', 'count'
+        sort_order: 'asc' (ascending), 'desc' (descending)
+        """
         tasks_data = self.load_tasks_data()
         all_tasks = []
         for category_name, category_details in tasks_data.get("categories", {}).items():
@@ -243,7 +281,17 @@ class DataManager:
                     'original_name': task_name,
                     'category': category_name
                 })
-        return sorted(all_tasks, key=lambda x: x['name'])
+        
+        # Logika pengurutan
+        reverse_order = (sort_order == 'desc')
+        if sort_by == 'date':
+            all_tasks.sort(key=_get_sort_key_for_date, reverse=reverse_order)
+        elif sort_by == 'count':
+            all_tasks.sort(key=lambda x: x['count'], reverse=reverse_order)
+        else: # default ke 'name'
+            all_tasks.sort(key=lambda x: x['name'].lower(), reverse=reverse_order)
+            
+        return all_tasks
 
     def save_task(self, category_name, task_name, data):
         """Menyimpan data sebuah task ke dalam kategori di file JSON."""
