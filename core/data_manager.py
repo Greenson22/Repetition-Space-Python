@@ -1,4 +1,4 @@
-# file: test/data_manager.py
+# file: test/core/data_manager.py
 
 import os
 import json
@@ -17,29 +17,47 @@ class DataManager:
         return sorted([d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))])
 
     def _get_earliest_date_and_code(self, file_path):
-        """Mendapatkan tanggal dan kode repetisi paling awal dari sebuah file subject."""
+        """
+        Mendapatkan tanggal dan kode repetisi paling awal dari sebuah file subject.
+        Prioritas membaca dari metadata untuk efisiensi.
+        """
         content = self.load_content(file_path)
-        earliest_date = None
-        earliest_code = None
+        metadata = content.get("metadata")
+
+        # Coba baca dari metadata terlebih dahulu
+        if metadata and "earliest_date" in metadata:
+            # Pastikan earliest_date tidak None
+            if metadata.get("earliest_date") is not None:
+                return metadata.get("earliest_date"), metadata.get("earliest_code")
+
+        # Fallback: Hitung manual jika metadata tidak ada/kosong
+        earliest_date_obj = None
+        earliest_code_val = None
 
         for item in content.get("content", []):
             # Cek tanggal di discussion
             if item.get("date"):
-                current_date = datetime.strptime(item["date"], "%Y-%m-%d")
-                if earliest_date is None or current_date < earliest_date:
-                    earliest_date = current_date
-                    earliest_code = item.get("repetition_code")
+                try:
+                    current_date = datetime.strptime(item["date"], "%Y-%m-%d")
+                    if earliest_date_obj is None or current_date < earliest_date_obj:
+                        earliest_date_obj = current_date
+                        earliest_code_val = item.get("repetition_code")
+                except (ValueError, TypeError):
+                    continue
 
             # Cek tanggal di points
             for point in item.get("points", []):
                 if point.get("date"):
-                    current_date = datetime.strptime(point["date"], "%Y-%m-%d")
-                    if earliest_date is None or current_date < earliest_date:
-                        earliest_date = current_date
-                        earliest_code = point.get("repetition_code")
+                    try:
+                        current_date = datetime.strptime(point["date"], "%Y-%m-%d")
+                        if earliest_date_obj is None or current_date < earliest_date_obj:
+                            earliest_date_obj = current_date
+                            earliest_code_val = point.get("repetition_code")
+                    except (ValueError, TypeError):
+                        continue
         
-        if earliest_date:
-            return earliest_date.strftime("%Y-%m-%d"), earliest_code
+        if earliest_date_obj:
+            return earliest_date_obj.strftime("%Y-%m-%d"), earliest_code_val
         return None, None
 
     def get_subjects(self, topic_path):

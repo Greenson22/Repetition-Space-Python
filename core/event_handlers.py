@@ -16,6 +16,46 @@ class EventHandlers:
         self.win = main_window
         self.data_manager = main_window.data_manager
 
+    def update_earliest_date_in_metadata(self):
+        """Mencari tanggal & kode paling awal dan menyimpannya di metadata."""
+        if not self.win.current_content:
+            return
+
+        content_items = self.win.current_content.get("content", [])
+        earliest_date_str = None
+        earliest_code = None
+        
+        all_items = []
+        for item in content_items:
+            # Item bisa berupa discussion (jika tidak punya points) atau point
+            if item.get("points"):
+                for point in item.get("points", []):
+                    if point.get("date"):
+                        all_items.append(point)
+            elif item.get("date"):
+                all_items.append(item)
+
+        if all_items:
+            try:
+                # Cari item dengan tanggal paling awal
+                earliest_item = min(
+                    all_items,
+                    key=lambda x: datetime.strptime(x["date"], "%Y-%m-%d")
+                )
+                earliest_date_str = earliest_item.get("date")
+                earliest_code = earliest_item.get("repetition_code")
+            except (ValueError, TypeError):
+                # Handle kasus jika tidak ada item dengan tanggal yang valid
+                earliest_date_str = None
+                earliest_code = None
+
+        # Buat atau update metadata
+        if "metadata" not in self.win.current_content or self.win.current_content.get("metadata") is None:
+            self.win.current_content["metadata"] = {}
+        
+        self.win.current_content["metadata"]["earliest_date"] = earliest_date_str
+        self.win.current_content["metadata"]["earliest_code"] = earliest_code
+
     # --- Bagian Event Handlers (Seleksi, Klik Tombol, dll) ---
     def topic_selected(self, current, previous):
         self.win.subject_list.clear()
@@ -83,7 +123,7 @@ class EventHandlers:
         name, ok = QInputDialog.getText(self.win, "Buat Subject Baru", "Nama Subject:")
         if ok and name:
             file_path = os.path.join(self.win.current_topic_path, f"{name}.json")
-            self.win.current_content = {"content": [], "metadata": None}
+            self.win.current_content = {"content": [], "metadata": {"earliest_date": None, "earliest_code": None}}
             self.win.current_subject_path = file_path
             self.data_manager.save_content(file_path, self.win.current_content)
             self.win.refresh_subject_list()

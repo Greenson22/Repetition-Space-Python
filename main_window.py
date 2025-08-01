@@ -173,5 +173,12 @@ class ContentManager(QMainWindow):
 
     def save_and_refresh_content(self):
         """Menyimpan konten saat ini dan merefresh tampilan."""
+        # Panggil handler untuk mengupdate metadata sebelum menyimpan
+        self.handlers.update_earliest_date_in_metadata()
+        
+        # Simpan konten dengan metadata yang sudah diperbarui
         self.data_manager.save_content(self.current_subject_path, self.current_content)
+        
+        # Refresh tampilan
         self.refresh_content_tree()
+        self.refresh_subject_list() # Untuk update list subject secara real-time
