@@ -123,11 +123,24 @@ class EventHandlers:
         if not self.win.current_topic_path: return
         name, ok = QInputDialog.getText(self.win, "Buat Subject Baru", "Nama Subject:")
         if ok and name:
+            # Menghapus spasi di awal/akhir nama
+            name = name.strip()
+            if not name:
+                QMessageBox.warning(self.win, "Nama Tidak Valid", "Nama subject tidak boleh kosong.")
+                return
+
             file_path = os.path.join(self.win.current_topic_path, f"{name}.json")
+
+            # Cek jika file dengan nama yang sama sudah ada
+            if os.path.exists(file_path):
+                QMessageBox.warning(self.win, "Gagal", f"Subject dengan nama '{name}' sudah ada.")
+                return
+
             self.win.current_content = {"content": [], "metadata": {"earliest_date": None, "earliest_code": None, "icon": config.DEFAULT_SUBJECT_ICON}}
             self.win.current_subject_path = file_path
             self.data_manager.save_content(file_path, self.win.current_content)
             self.win.refresh_subject_list()
+
 
     def rename_subject(self):
         if not self.win.current_topic_path or not self.win.subject_list.currentItem(): return
