@@ -32,14 +32,13 @@ UI_SCALE_CONFIG = {
 DEFAULT_SCALE = "Sedang"
 # ----------------------------------------
 
-REPETITION_CODES = ["R0D", "R1D", "R3D", "R7D", "R7D1", "R7D2", "R7D3", "R30D", "Finish"]
+REPETITION_CODES = ["R0D", "R1D", "R3D", "R7D", "R7D2", "R7D3", "R30D", "Finish"]
 
 REPETITION_CODES_DAYS = {
     "R0D": 0,
     "R1D": 1,
     "R3D": 3,
     "R7D": 7,
-    "R7D1": 7,
     "R7D2": 7,
     "R7D3": 7,
     "R30D": 30,

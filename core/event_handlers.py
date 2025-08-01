@@ -386,26 +386,23 @@ class EventHandlers:
         if not item_dict:
             self.win.refresh_content_tree()
             return
-        
-        current_date_str = item_dict.get("date")
-        if not current_date_str:
-            current_date = datetime.now()
-            item_dict["date"] = current_date.strftime("%Y-%m-%d")
-            if not item_dict.get("repetition_code"):
-                 item_dict["repetition_code"] = "R0D"
-        else:
-            current_date = datetime.strptime(current_date_str, "%Y-%m-%d")
-
+    
+        # Get the original date for display purposes in the confirmation dialog
+        original_date_str = item_dict.get("date", "tidak ada")
+    
+        # The new date is always calculated from today's date
+        base_date = datetime.now()
         days_to_add = config.REPETITION_CODES_DAYS.get(new_code, 0)
-        new_date_str = (current_date + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
-
-        if new_code == item_dict.get("repetition_code") and current_date.strftime("%Y-%m-%d") == item_dict.get("date"):
+        new_date_str = (base_date + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
+    
+        # If nothing would change, no need to ask for confirmation
+        if new_code == item_dict.get("repetition_code") and original_date_str == new_date_str:
             self.win.refresh_content_tree()
             return
-
+    
         reply = QMessageBox.question(self.win, "Konfirmasi Perubahan",
             f"Anda akan mengubah kode repetisi menjadi <b>{new_code}</b>.<br>"
-            f"Tanggal akan diperbarui dari {current_date.strftime('%Y-%m-%d')} ke <b>{new_date_str}</b>.<br><br>"
+            f"Tanggal akan diperbarui dari {original_date_str} ke <b>{new_date_str}</b> (berdasarkan tanggal hari ini).<br><br>"
             "Apakah Anda yakin?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             
@@ -414,6 +411,7 @@ class EventHandlers:
             item_dict["repetition_code"] = new_code
             self.win.save_and_refresh_content()
         else:
+            # If the user cancels, revert the combobox to the original value.
             self.win.refresh_content_tree()
 
 
