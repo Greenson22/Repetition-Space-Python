@@ -165,3 +165,69 @@ class DataManager:
     def delete_file(self, path):
         """Menghapus file."""
         os.remove(path)
+    
+    # --- BARU: Fungsi untuk mengelola data Task ---
+    def get_task_categories(self):
+        """Mendapatkan daftar semua kategori task (folder)."""
+        categories = []
+        for d in sorted([d for d in os.listdir(self.task_base_path) if os.path.isdir(os.path.join(self.task_base_path, d))]):
+            categories.append({'name': d, 'icon': config.DEFAULT_CATEGORY_ICON})
+        return categories
+
+    def get_tasks(self, category_name):
+        """Mendapatkan daftar semua task dari sebuah kategori."""
+        tasks = []
+        category_path = os.path.join(self.task_base_path, category_name)
+        if not os.path.exists(category_path):
+            return tasks
+
+        for file_name in sorted(os.listdir(category_path)):
+            if file_name.endswith('.json'):
+                file_path = os.path.join(category_path, file_name)
+                task_data = self.load_content(file_path)
+                task_name = os.path.splitext(file_name)[0]
+                tasks.append({
+                    'name': task_name,
+                    'count': task_data.get('count', 0),
+                    'date': task_data.get('date', ''),
+                    'icon': config.DEFAULT_TASK_ICON
+                })
+        return tasks
+
+    def get_all_tasks(self):
+        """Mendapatkan semua task dari semua kategori."""
+        all_tasks = []
+        categories = self.get_task_categories()
+        for category in categories:
+            all_tasks.extend(self.get_tasks(category['name']))
+        return all_tasks
+
+    def create_task_category(self, category_name):
+        """Membuat direktori baru untuk kategori task."""
+        path = os.path.join(self.task_base_path, category_name)
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+    def rename_task_category(self, old_name, new_name):
+        """Mengubah nama direktori kategori task."""
+        old_path = os.path.join(self.task_base_path, old_name)
+        new_path = os.path.join(self.task_base_path, new_name)
+        self.rename_path(old_path, new_path)
+
+    def delete_task_category(self, category_name):
+        """Menghapus direktori kategori task."""
+        path = os.path.join(self.task_base_path, category_name)
+        self.delete_directory(path)
+
+    def save_task(self, category_name, task_name, data):
+        """Menyimpan data task ke file JSON."""
+        category_path = os.path.join(self.task_base_path, category_name)
+        if not os.path.exists(category_path):
+            os.makedirs(category_path)
+        file_path = os.path.join(category_path, f"{task_name}.json")
+        self.save_content(file_path, data)
+
+    def delete_task(self, category_name, task_name):
+        """Menghapus file task."""
+        file_path = os.path.join(self.task_base_path, category_name, f"{task_name}.json")
+        self.delete_file(file_path)

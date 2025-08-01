@@ -44,8 +44,13 @@ class UIBuilder:
         )
         self.win.subject_list = subject_panel.findChild(QListWidget)
 
+        # task_panel = self._create_task_panel()
         content_panel = self._create_content_panel()
 
+        # 3. BARU: Membuat dan MENAMBAHKAN panel Task
+        # PASTIKAN DUA BARIS INI ADA DAN TIDAK DI-COMMENT
+        
+        # splitter.addWidget(task_panel)
         splitter.addWidget(topic_panel)
         splitter.addWidget(subject_panel)
         splitter.addWidget(content_panel)
@@ -121,3 +126,49 @@ class UIBuilder:
             setattr(self.win, attr, btn)
             layout.addWidget(btn)
         return layout
+
+    # --- BARU: Fungsi untuk membuat panel Task ---
+    def _create_task_panel(self):
+        """Membuat panel untuk kategori dan daftar task."""
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+
+        # Panel Kategori Task
+        category_panel = self._create_list_panel(
+            title="Kategori Task",
+            selection_handler=self.win.handlers.task_category_selected,
+            buttons=[
+                ("btn_buat_kategori", "Buat", self.win.handlers.create_task_category),
+                ("btn_ubah_kategori", "Ubah Nama", self.win.handlers.rename_task_category),
+                ("btn_hapus_kategori", "Hapus", self.win.handlers.delete_task_category),
+            ],
+            type="task_category"
+        )
+        self.win.task_category_list = category_panel.findChild(QListWidget)
+        
+        # Panel Daftar Task
+        task_list_panel = QWidget()
+        task_list_layout = QVBoxLayout(task_list_panel)
+        
+        task_title = QLabel("✔️ Tasks")
+        self.win.task_title_label = task_title # Simpan untuk scaling
+        
+        self.win.task_tree = QTreeWidget()
+        self.win.task_tree.setHeaderLabels(["Task", "Count", "Date"])
+        self.win.task_tree.header().resizeSection(0, 200)
+        
+        task_buttons = self._create_button_layout([
+            ("btn_tambah_task", "Tambah Task", self.win.handlers.add_task),
+            ("btn_edit_task", "Edit Task", self.win.handlers.edit_task),
+            ("btn_hapus_task", "Hapus Task", self.win.handlers.delete_task),
+            ("btn_tambah_hitung", "+", self.win.handlers.increment_task_count),
+            ("btn_kurang_hitung", "-", self.win.handlers.decrement_task_count),
+        ])
+
+        task_list_layout.addWidget(task_title)
+        task_list_layout.addWidget(self.win.task_tree)
+        task_list_layout.addLayout(task_buttons)
+        
+        layout.addWidget(category_panel)
+        layout.addWidget(task_list_panel)
+        return panel

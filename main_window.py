@@ -344,3 +344,41 @@ class ContentManager(QMainWindow):
         self.data_manager.save_content(self.current_subject_path, self.current_content)
         self.refresh_content_tree()
         self.refresh_subject_list()
+
+    # --- BARU: Metode untuk Refresh Tampilan Task ---
+    def refresh_task_category_list(self):
+        """Merefresh daftar kategori task."""
+        self.task_category_list.clear()
+        # Tambahkan "Semua Task" secara default
+        all_tasks_item = QListWidgetItem("📂 Semua Task")
+        self.task_category_list.addItem(all_tasks_item)
+
+        categories = self.data_manager.get_task_categories()
+        for cat_data in categories:
+            item = QListWidgetItem(f"{cat_data['icon']} {cat_data['name']}")
+            self.task_category_list.addItem(item)
+        
+        # Pilih "Semua Task" sebagai default jika belum ada yang dipilih
+        if not self.task_category_list.currentItem():
+            self.task_category_list.setCurrentItem(all_tasks_item)
+
+    def refresh_task_list(self):
+        """Merefresh daftar task berdasarkan kategori yang dipilih."""
+        self.task_tree.clear()
+        
+        if not self.current_task_category:
+            return
+
+        if self.current_task_category == "Semua Task":
+            tasks = self.data_manager.get_all_tasks()
+        else:
+            tasks = self.data_manager.get_tasks(self.current_task_category)
+            
+        for task_data in tasks:
+            item = QTreeWidgetItem(self.task_tree)
+            item.setText(0, task_data['name'])
+            item.setText(1, str(task_data['count']))
+            item.setText(2, task_data['date'])
+    
+    # ... (sisa dari file main_window.py, termasuk modifikasi pada `update_button_states`) ...
+    # Anda perlu menambahkan logika untuk mengaktifkan/menonaktifkan tombol-tombol task baru di sana.

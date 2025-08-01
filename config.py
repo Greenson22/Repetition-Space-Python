@@ -1,10 +1,14 @@
 # file: config.py
 
 BASE_PATH = "data/contents/topics"
+TASK_BASE_PATH = "data/contents/tasks" # BARU: Path untuk data task
 
 DEFAULT_TOPIC_ICON = "📁"
 DEFAULT_SUBJECT_ICON = "📚"
-AVAILABLE_ICONS = ["📁", "💼", "📝", "📓", "📚", "💡", "🎯", "⭐", "⚙️", "🔧"]
+DEFAULT_CATEGORY_ICON = "📂" # BARU: Ikon default untuk kategori
+DEFAULT_TASK_ICON = "✔️" # BARU: Ikon default untuk task
+
+AVAILABLE_ICONS = ["📁", "💼", "📝", "📓", "📚", "💡", "🎯", "⭐", "⚙️", "🔧", "📂", "✔️"] # Ditambahkan ikon baru
 
 # --- BARU: Konfigurasi untuk Skala UI ---
 UI_SCALE_CONFIG = {

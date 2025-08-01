@@ -497,3 +497,108 @@ class EventHandlers:
             )
 
         self.win.content_tree.setItemWidget(item, column, combo)
+    
+    # --- BARU: Event Handlers untuk Task dan Kategori ---
+    def task_category_selected(self, current, previous):
+        """Handler saat kategori task dipilih."""
+        if not current:
+            self.win.current_task_category = None
+        else:
+            category_name = current.text().split(" ", 1)[1]
+            self.win.current_task_category = category_name
+        self.win.refresh_task_list()
+        self.update_button_states()
+
+    def create_task_category(self):
+        """Membuat kategori task baru."""
+        name, ok = QInputDialog.getText(self.win, "Buat Kategori Baru", "Nama Kategori:")
+        if ok and name:
+            self.data_manager.create_task_category(name)
+            self.win.refresh_task_category_list()
+
+    def rename_task_category(self):
+        """Mengubah nama kategori task yang dipilih."""
+        item = self.win.task_category_list.currentItem()
+        if not item: return
+        old_name = item.text().split(" ", 1)[1]
+        new_name, ok = QInputDialog.getText(self.win, "Ubah Nama Kategori", "Nama Baru:", text=old_name)
+        if ok and new_name and new_name != old_name:
+            self.data_manager.rename_task_category(old_name, new_name)
+            self.win.refresh_task_category_list()
+
+    def delete_task_category(self):
+        """Menghapus kategori task yang dipilih."""
+        item = self.win.task_category_list.currentItem()
+        if not item: return
+        name = item.text().split(" ", 1)[1]
+        if name == "Semua Task":
+            QMessageBox.warning(self.win, "Gagal", "Kategori 'Semua Task' tidak dapat dihapus.")
+            return
+        reply = QMessageBox.question(self.win, "Konfirmasi", f"Yakin ingin menghapus kategori '{name}' dan semua isinya?")
+        if reply == QMessageBox.StandardButton.Yes:
+            self.data_manager.delete_task_category(name)
+            self.win.refresh_task_category_list()
+
+    def add_task(self):
+        """Menambahkan task baru ke kategori yang dipilih."""
+        if not self.win.current_task_category or self.win.current_task_category == "Semua Task":
+            QMessageBox.warning(self.win, "Gagal", "Pilih kategori selain 'Semua Task' untuk menambahkan task.")
+            return
+        
+        task_name, ok = QInputDialog.getText(self.win, "Tambah Task Baru", "Nama Task:")
+        if ok and task_name:
+            date_str = datetime.now().strftime("%d-%m-%Y")
+            new_task = {'count': 0, 'date': date_str}
+            self.data_manager.save_task(self.win.current_task_category, task_name, new_task)
+            self.win.refresh_task_list()
+
+    def edit_task(self):
+        """Mengedit nama task yang dipilih."""
+        item = self.win.task_tree.currentItem()
+        if not item or not self.win.current_task_category or self.win.current_task_category == "Semua Task":
+            return
+        
+        old_task_name = item.text(0)
+        new_task_name, ok = QInputDialog.getText(self.win, "Edit Nama Task", "Nama Baru:", text=old_task_name)
+        
+        if ok and new_task_name and new_task_name != old_task_name:
+            task_data = self.data_manager.load_content(os.path.join(self.win.data_manager.task_base_path, self.win.current_task_category, f"{old_task_name}.json"))
+            self.data_manager.save_task(self.win.current_task_category, new_task_name, task_data)
+            self.data_manager.delete_task(self.win.current_task_category, old_task_name)
+            self.win.refresh_task_list()
+
+    def delete_task(self):
+        """Menghapus task yang dipilih."""
+        item = self.win.task_tree.currentItem()
+        if not item or not self.win.current_task_category or self.win.current_task_category == "Semua Task":
+            return
+
+        task_name = item.text(0)
+        reply = QMessageBox.question(self.win, "Konfirmasi", f"Yakin ingin menghapus task '{task_name}'?")
+        if reply == QMessageBox.StandardButton.Yes:
+            self.data_manager.delete_task(self.win.current_task_category, task_name)
+            self.win.refresh_task_list()
+
+    def increment_task_count(self):
+        """Menambah hitungan task yang dipilih."""
+        self._adjust_task_count(1)
+
+    def decrement_task_count(self):
+        """Mengurangi hitungan task yang dipilih."""
+        self._adjust_task_count(-1)
+        
+    def _adjust_task_count(self, amount):
+        """Logika internal untuk mengubah hitungan task."""
+        item = self.win.task_tree.currentItem()
+        if not item or not self.win.current_task_category or self.win.current_task_category == "Semua Task":
+            return
+            
+        task_name = item.text(0)
+        file_path = os.path.join(self.win.data_manager.task_base_path, self.win.current_task_category, f"{task_name}.json")
+        task_data = self.data_manager.load_content(file_path)
+        
+        current_count = task_data.get('count', 0)
+        task_data['count'] = max(0, current_count + amount) # Pastikan tidak negatif
+        
+        self.data_manager.save_task(self.win.current_task_category, task_name, task_data)
+        self.win.refresh_task_list()
