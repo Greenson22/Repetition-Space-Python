@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem, QFileDialog, QSplitter, QTreeWidgetItemIterator
+    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem, QFileDialog, QSplitter, QTreeWidgetItemIterator, QMessageBox
 )
 from PyQt6.QtGui import QFont, QAction, QActionGroup, QIcon
 from PyQt6.QtCore import Qt, QSize, QSettings
@@ -131,6 +131,31 @@ class ContentManager(QMainWindow):
         import_action = QAction("Impor Cadangan...", self)
         import_action.triggered.connect(self.handlers.import_backup)
         backup_menu.addAction(import_action)
+
+        # --- Menu Bantuan (About) ---
+        help_menu = menu_bar.addMenu("Bantuan")
+        about_action = QAction("Tentang Aplikasi", self)
+        about_action.triggered.connect(self.show_about_dialog)
+        help_menu.addAction(about_action)
+
+    def show_about_dialog(self):
+        """Menampilkan dialog 'About' dengan informasi aplikasi."""
+        about_text = """
+        <b>Content Manager v1.0</b>
+        <p>Aplikasi ini dibuat oleh:</p>
+        <p><b>Frendy Rikal Gerung S.Kom</b></p>
+        <p>
+        Lulusan Universitas Negeri Manado, Fakultas Teknik,
+        Program Studi Teknik Informatika.
+        </p>
+        <p>
+        Berasal dari desa Raanan Baru. Saya sangat menyukai belajar, 
+        coding, serta hal-hal menarik lainnya.
+        </p>
+        <p>Terima kasih telah menggunakan aplikasi ini!</p>
+        """
+        QMessageBox.about(self, "Tentang Content Manager", about_text)
+
 
     def set_date_filter(self, filter_type):
         """Mengatur filter tanggal dan merefresh tampilan konten."""
