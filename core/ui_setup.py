@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QLabel, QListWidget, 
-    QTreeWidget, QPushButton, QSplitter
+    QTreeWidget, QPushButton, QSplitter, QFrame
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import QSize
@@ -44,12 +44,14 @@ class UIBuilder:
         )
         self.win.subject_list = subject_panel.findChild(QListWidget)
 
-        task_panel = self._create_task_panel()
+        # Gunakan metode baru untuk membuat panel task & kategori yang terintegrasi
+        task_and_category_panel = self._create_task_and_category_panel()
+        
         content_panel = self._create_content_panel()
 
         main_splitter.addWidget(topic_panel)
         main_splitter.addWidget(subject_panel)
-        main_splitter.addWidget(task_panel)
+        main_splitter.addWidget(task_and_category_panel)
         main_splitter.addWidget(content_panel)
         main_splitter.setSizes([200, 250, 300, 450])
 
@@ -124,20 +126,42 @@ class UIBuilder:
             layout.addWidget(btn)
         return layout
 
-    def _create_task_panel(self):
-        """Membuat panel untuk kategori dan daftar task."""
+    def _create_task_and_category_panel(self):
+        """Membuat panel gabungan untuk tasks (atas) dan kategori (bawah)."""
+        # Panel utama dengan layout vertikal
         main_panel = QWidget()
         main_layout = QVBoxLayout(main_panel)
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setContentsMargins(9, 9, 9, 9)
 
-        splitter = QSplitter()
-        main_layout.addWidget(splitter)
-
-        # == BAGIAN KIRI SPLITTER (KATEGORI) ==
-        category_widget = QWidget()
-        category_layout = QVBoxLayout(category_widget)
+        # --- Bagian Tasks (Atas) ---
+        self.win.task_title_label = QLabel("✔️ Tasks")
         
-        # Secara eksplisit buat QLabel dan simpan untuk scaling
+        self.win.task_tree = QTreeWidget()
+        self.win.task_tree.setHeaderLabels(["Task", "Count", "Date"])
+        self.win.task_tree.header().resizeSection(0, 150)
+        # Hubungkan event pemilihan item untuk mengaktifkan/menonaktifkan tombol
+        self.win.task_tree.currentItemChanged.connect(self.win.handlers.update_button_states)
+        
+        task_buttons = self._create_button_layout([
+            ("btn_tambah_task", "Tambah Task", self.win.handlers.add_task),
+            ("btn_edit_task", "Edit Task", self.win.handlers.edit_task),
+            ("btn_hapus_task", "Hapus Task", self.win.handlers.delete_task),
+            ("btn_tambah_hitung", "+", self.win.handlers.increment_task_count),
+            ("btn_kurang_hitung", "-", self.win.handlers.decrement_task_count),
+        ])
+
+        # Tambahkan semua widget task ke layout utama
+        main_layout.addWidget(self.win.task_title_label)
+        main_layout.addWidget(self.win.task_tree)
+        main_layout.addLayout(task_buttons)
+
+        # Tambahkan garis pemisah
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        main_layout.addWidget(separator)
+
+        # --- Bagian Kategori (Bawah) ---
         self.win.task_category_title_label = QLabel("Kategori Task")
         
         self.win.task_category_list = QListWidget()
@@ -148,36 +172,10 @@ class UIBuilder:
             ("btn_ubah_kategori", "Ubah Nama", self.win.handlers.rename_task_category),
             ("btn_hapus_kategori", "Hapus", self.win.handlers.delete_task_category),
         ])
-        
-        category_layout.addWidget(self.win.task_category_title_label)
-        category_layout.addWidget(self.win.task_category_list)
-        category_layout.addLayout(category_buttons)
-        
-        # == BAGIAN KANAN SPLITTER (TASK) ==
-        task_list_panel = QWidget()
-        task_list_layout = QVBoxLayout(task_list_panel)
-        
-        self.win.task_title_label = QLabel("✔️ Tasks")
-        
-        self.win.task_tree = QTreeWidget()
-        self.win.task_tree.setHeaderLabels(["Task", "Count", "Date"])
-        self.win.task_tree.header().resizeSection(0, 150)
-        
-        task_buttons = self._create_button_layout([
-            ("btn_tambah_task", "Tambah Task", self.win.handlers.add_task),
-            ("btn_edit_task", "Edit Task", self.win.handlers.edit_task),
-            ("btn_hapus_task", "Hapus Task", self.win.handlers.delete_task),
-            ("btn_tambah_hitung", "+", self.win.handlers.increment_task_count),
-            ("btn_kurang_hitung", "-", self.win.handlers.decrement_task_count),
-        ])
 
-        task_list_layout.addWidget(self.win.task_title_label)
-        task_list_layout.addWidget(self.win.task_tree)
-        task_list_layout.addLayout(task_buttons)
-
-        # Tambahkan kedua panel ke splitter
-        splitter.addWidget(category_widget)
-        splitter.addWidget(task_list_panel)
-        splitter.setSizes([150, 200])
+        # Tambahkan semua widget kategori ke layout utama
+        main_layout.addWidget(self.win.task_category_title_label)
+        main_layout.addWidget(self.win.task_category_list)
+        main_layout.addLayout(category_buttons)
 
         return main_panel
