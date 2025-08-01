@@ -123,10 +123,19 @@ class ContentManager(QMainWindow):
         filter_menu.addAction(today_action)
         filter_group.addAction(today_action)
 
-        if self.date_filter == "all":
-            all_action.setChecked(True)
-        else:
+        past_and_today_action = QAction("Tampilkan Hingga Hari Ini", self, checkable=True)
+        past_and_today_action.triggered.connect(lambda: self.set_date_filter("past_and_today"))
+        filter_menu.addAction(past_and_today_action)
+        filter_group.addAction(past_and_today_action)
+
+        current_filter = self.settings.value("date_filter", "all")
+        self.date_filter = current_filter
+        if current_filter == "today":
             today_action.setChecked(True)
+        elif current_filter == "past_and_today":
+            past_and_today_action.setChecked(True)
+        else:
+            all_action.setChecked(True)
 
         # --- Menu Backup ---
         backup_menu = menu_bar.addMenu("Backup")
@@ -167,6 +176,7 @@ class ContentManager(QMainWindow):
     def set_date_filter(self, filter_type):
         """Mengatur filter tanggal dan merefresh tampilan konten."""
         self.date_filter = filter_type
+        self.settings.setValue("date_filter", filter_type)
         self.refresh_content_tree()
 
     def set_theme(self, theme):
@@ -326,23 +336,53 @@ class ContentManager(QMainWindow):
             discussions_to_process = [{"data": data, "original_index": index} for index, data in enumerate(discussions)]
         
         # --- Lakukan filter tanggal ---
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now().date()
         filtered_discussions = []
-        if self.date_filter == "today" and not query: # Filter tanggal hanya jika tidak sedang mencari
+        if self.date_filter in ["today", "past_and_today"] and not query: # Filter tanggal hanya jika tidak sedang mencari
             for item in discussions_to_process:
                 disc_data = item["data"]
                 original_index = item["original_index"]
 
-                if disc_data.get("date") == today_str and not disc_data.get("points"):
-                    filtered_discussions.append(item)
-                    continue
+                # Logika filter untuk "today"
+                if self.date_filter == "today":
+                    if disc_data.get("date") == today.strftime("%Y-%m-%d") and not disc_data.get("points"):
+                        filtered_discussions.append(item)
+                        continue
+                    matching_points = [p for p in disc_data.get("points", []) if p.get("date") == today.strftime("%Y-%m-%d")]
+                    if matching_points:
+                        new_disc_data = disc_data.copy()
+                        new_disc_data["points"] = matching_points
+                        filtered_discussions.append({"data": new_disc_data, "original_index": original_index})
+                
+                # Logika filter untuk "past_and_today"
+                elif self.date_filter == "past_and_today":
+                    disc_date_str = disc_data.get("date")
+                    if disc_date_str and not disc_data.get("points"):
+                        try:
+                            disc_date = datetime.strptime(disc_date_str, "%Y-%m-%d").date()
+                            if disc_date <= today:
+                                filtered_discussions.append(item)
+                        except (ValueError, TypeError):
+                            pass # Abaikan jika format tanggal salah
+                        continue
 
-                matching_points = [p for p in disc_data.get("points", []) if p.get("date") == today_str]
-                if matching_points:
-                    new_disc_data = disc_data.copy()
-                    new_disc_data["points"] = matching_points
-                    filtered_discussions.append({"data": new_disc_data, "original_index": original_index})
-        else:
+                    matching_points = []
+                    for p in disc_data.get("points", []):
+                        point_date_str = p.get("date")
+                        if point_date_str:
+                            try:
+                                point_date = datetime.strptime(point_date_str, "%Y-%m-%d").date()
+                                if point_date <= today:
+                                    matching_points.append(p)
+                            except (ValueError, TypeError):
+                                pass # Abaikan jika format tanggal salah
+                    
+                    if matching_points:
+                        new_disc_data = disc_data.copy()
+                        new_disc_data["points"] = matching_points
+                        filtered_discussions.append({"data": new_disc_data, "original_index": original_index})
+
+        else: # "all" atau saat sedang mencari
             filtered_discussions = discussions_to_process
 
         indexed_discussions = [(item["original_index"], item["data"]) for item in filtered_discussions]
