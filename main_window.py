@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem, QFileDialog, QSplitter
+    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem, QFileDialog, QSplitter, QTreeWidgetItemIterator
 )
 from PyQt6.QtGui import QFont, QAction, QActionGroup, QIcon
 from PyQt6.QtCore import Qt, QSize, QSettings
@@ -58,6 +58,9 @@ class ContentManager(QMainWindow):
         self.refresh_task_category_list() 
         self.handlers.update_button_states()
         self.content_tree.header().setSortIndicator(self.sort_column, self.sort_order)
+        
+        # BARU: Memuat status terakhir
+        self.load_state()
 
     def _create_menu_bar(self):
         menu_bar = self.menuBar()
@@ -128,7 +131,6 @@ class ContentManager(QMainWindow):
         import_action = QAction("Impor Cadangan...", self)
         import_action.triggered.connect(self.handlers.import_backup)
         backup_menu.addAction(import_action)
-
 
     def set_date_filter(self, filter_type):
         """Mengatur filter tanggal dan merefresh tampilan konten."""
@@ -432,3 +434,90 @@ class ContentManager(QMainWindow):
                 task_info.get("category") == category_name_to_select):
                 self.task_tree.setCurrentItem(item)
                 break
+
+    # --- BARU: Metode untuk menyimpan dan memuat status ---
+    def save_state(self):
+        """Menyimpan item yang dipilih terakhir di setiap panel."""
+        # Topik
+        topic_item = self.topic_list.currentItem()
+        if topic_item:
+            self.settings.setValue("last_selected_topic", topic_item.text())
+
+        # Subjek
+        subject_item = self.subject_list.currentItem()
+        if subject_item:
+            self.settings.setValue("last_selected_subject", subject_item.text())
+
+        # Konten (Diskusi/Point)
+        content_item = self.content_tree.currentItem()
+        if content_item:
+            data = content_item.data(0, Qt.ItemDataRole.UserRole)
+            self.settings.setValue("last_selected_content", data)
+        
+        # Kategori Task
+        task_category_item = self.task_category_list.currentItem()
+        if task_category_item:
+            self.settings.setValue("last_selected_task_category", task_category_item.text())
+        
+        # Task
+        task_item = self.task_tree.currentItem()
+        if task_item:
+            data = task_item.data(0, Qt.ItemDataRole.UserRole)
+            self.settings.setValue("last_selected_task", data)
+
+    def load_state(self):
+        """Memuat dan memilih item terakhir yang disimpan."""
+        # Pilih Kategori Task
+        last_category = self.settings.value("last_selected_task_category")
+        if last_category:
+            for i in range(self.task_category_list.count()):
+                if self.task_category_list.item(i).text() == last_category:
+                    self.task_category_list.setCurrentRow(i)
+                    break
+        
+        # Pilih Task
+        last_task_data = self.settings.value("last_selected_task")
+        if last_task_data:
+            # Refresh diperlukan agar item-itemnya ada
+            self.refresh_task_list() 
+            for i in range(self.task_tree.topLevelItemCount()):
+                item = self.task_tree.topLevelItem(i)
+                if item.data(0, Qt.ItemDataRole.UserRole) == last_task_data:
+                    self.task_tree.setCurrentItem(item)
+                    break
+
+        # Pilih Topik
+        last_topic = self.settings.value("last_selected_topic")
+        if last_topic:
+            for i in range(self.topic_list.count()):
+                if self.topic_list.item(i).text() == last_topic:
+                    self.topic_list.setCurrentRow(i)
+                    break # Berhenti setelah ditemukan
+        
+        # Pilih Subjek
+        last_subject = self.settings.value("last_selected_subject")
+        if self.current_topic_path and last_subject:
+             # Refresh diperlukan agar item-itemnya ada
+            self.refresh_subject_list()
+            for i in range(self.subject_list.count()):
+                if self.subject_list.item(i).text() == last_subject:
+                    self.subject_list.setCurrentRow(i)
+                    break
+        
+        # Pilih Konten
+        last_content_data = self.settings.value("last_selected_content")
+        if self.current_subject_path and last_content_data:
+            # Refresh diperlukan agar item-itemnya ada
+            self.refresh_content_tree() 
+            iterator = QTreeWidgetItemIterator(self.content_tree)
+            while iterator.value():
+                item = iterator.value()
+                if item.data(0, Qt.ItemDataRole.UserRole) == last_content_data:
+                    self.content_tree.setCurrentItem(item)
+                    break
+                iterator += 1
+
+    def closeEvent(self, event):
+        """Dipanggil saat jendela ditutup."""
+        self.save_state()
+        event.accept()
