@@ -13,7 +13,30 @@ STYLESHEET = """
     QPushButton { background-color: #4C566A; border: none; padding: 8px; border-radius: 5px; font-weight: bold; }
     QPushButton:hover { background-color: #5E81AC; }
     QPushButton:disabled { background-color: #434C5E; color: #6F7A8C; }
-    QHeaderView::section { background-color: #434C5E; padding: 4px; border: 1px solid #4C566A; }
+    
+    QHeaderView::section { 
+        background-color: #434C5E; 
+        padding: 4px; 
+        border: 1px solid #4C566A;
+        color: #ECEFF4; /* Menambahkan warna teks agar terlihat */
+        font-weight: bold; /* Menebalkan font header */
+    }
+
+    /* --- PERUBAHAN DI SINI --- */
+    QHeaderView::down-arrow {
+        /* Menggunakan panah bawaan Qt, tidak perlu file gambar */
+        subcontrol-origin: padding;
+        subcontrol-position: center right;
+        width: 12px;
+    }
+    QHeaderView::up-arrow {
+        /* Menggunakan panah bawaan Qt, tidak perlu file gambar */
+        subcontrol-origin: padding;
+        subcontrol-position: center right;
+        width: 12px;
+    }
+    /* --- AKHIR PERUBAHAN --- */
+
     QCalendarWidget QToolButton { color: white; }
     QCalendarWidget QMenu { background-color: #4C566A; }
     QCalendarWidget QSpinBox { background-color: #D8DEE9; color: #2E3440; }

@@ -31,18 +31,25 @@ class ContentManager(QMainWindow):
         self.current_topic_path = None
         self.current_subject_path = None
         self.current_content = None
+        
+        # Atribut untuk state pengurutan
+        self.sort_column = 1  # 0: Content, 1: Date, 2: Code
+        self.sort_order = Qt.SortOrder.AscendingOrder
 
         self._setup_ui()
         self.apply_stylesheet()
         self.refresh_topic_list()
         self.update_button_states()
+        
+        # Atur indikator pengurutan awal
+        self.content_tree.header().setSortIndicator(self.sort_column, self.sort_order)
 
     def _setup_ui(self):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         self.setCentralWidget(splitter)
 
         # Panel Topics
-        topic_panel = self.create_list_panel("📚 Topics", self.topic_selected, [
+        topic_panel = self.create_list_panel("Topics", self.topic_selected, [
             ("btn_buat_topic", "Buat", self.create_topic),
             ("btn_rename_topic", "Ubah Nama", self.rename_topic),
             ("btn_delete_topic", "Hapus", self.delete_topic)
@@ -51,7 +58,7 @@ class ContentManager(QMainWindow):
         splitter.addWidget(topic_panel)
 
         # Panel Subjects
-        subject_panel = self.create_list_panel("📄 Subjects", self.subject_selected, [
+        subject_panel = self.create_list_panel("Subjects", self.subject_selected, [
             ("btn_buat_subject", "Buat", self.create_subject),
             ("btn_rename_subject", "Ubah Nama", self.rename_subject),
             ("btn_delete_subject", "Hapus", self.delete_subject)
@@ -70,13 +77,21 @@ class ContentManager(QMainWindow):
     def _create_content_panel(self):
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        title = QLabel("📝 Content")
+        title = QLabel("Content")
         title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         
         self.content_tree = QTreeWidget()
         self.content_tree.setHeaderLabels(["Content", "Date", "Code"])
         self.content_tree.header().resizeSection(0, 350)
         self.content_tree.header().resizeSection(1, 150)
+        
+        # --- PERUBAHAN ---
+        # Aktifkan klik pada header untuk sorting
+        self.content_tree.header().setSectionsClickable(True)
+        self.content_tree.header().setSortIndicatorShown(True)
+        self.content_tree.header().sectionClicked.connect(self.sort_by_column)
+        # --- AKHIR PERUBAHAN ---
+        
         self.content_tree.currentItemChanged.connect(self.update_button_states)
 
         discussion_buttons = self._create_button_layout([
@@ -89,7 +104,7 @@ class ContentManager(QMainWindow):
             ("btn_tambah_point", "Tambah Point", self.add_point),
             ("btn_edit_point", "Edit Point", self.edit_point),
             ("btn_hapus_point", "Hapus Point", self.delete_point),
-            ("btn_ubah_tanggal", "🗓️ Ubah Tanggal", self.change_date_manually)
+            ("btn_ubah_tanggal", "欄ｸUbah Tanggal", self.change_date_manually)
         ])
         
         layout.addWidget(title)
@@ -150,27 +165,79 @@ class ContentManager(QMainWindow):
             self.current_content = {"content": [], "metadata": None}
             self.save_current_subject()
 
-        for i, discussion_data in enumerate(self.current_content.get("content", [])):
+        # --- PERUBAHAN: LOGIKA PENGURUTAN ---
+        discussions = self.current_content.get("content", [])
+        
+        # Buat daftar diskusi dengan index aslinya untuk menjaga referensi setelah diurutkan
+        indexed_discussions = list(enumerate(discussions))
+
+        def get_sort_key(indexed_item):
+            _, item_data = indexed_item
+            if self.sort_column == 0:  # Sort by Content
+                return item_data.get("discussion", "").lower()
+            elif self.sort_column == 1:  # Sort by Date
+                date_str = item_data.get("date")
+                if not date_str: # Jika diskusi tidak punya tanggal (karena punya point), cari tanggal terawal dari point
+                    point_dates = [p.get("date") for p in item_data.get("points", []) if p.get("date")]
+                    date_str = min(point_dates) if point_dates else "9999-12-31" # Taruh paling akhir jika tak ada tanggal
+                try:
+                    return datetime.strptime(date_str, "%Y-%m-%d")
+                except ValueError:
+                    return datetime.max # Handle format tanggal salah
+            elif self.sort_column == 2:  # Sort by Code
+                return item_data.get("repetition_code", "Z") # Taruh yang tak punya kode di akhir
+            return ""
+
+        is_reverse = (self.sort_order == Qt.SortOrder.DescendingOrder)
+        sorted_indexed_discussions = sorted(indexed_discussions, key=get_sort_key, reverse=is_reverse)
+        
+        # Iterasi melalui daftar yang sudah diurutkan
+        for original_index, discussion_data in sorted_indexed_discussions:
             parent_item = QTreeWidgetItem(self.content_tree)
             parent_item.setText(0, discussion_data.get("discussion", "Diskusi kosong"))
-            parent_item.setData(0, Qt.ItemDataRole.UserRole, {"type": "discussion", "index": i})
+            
+            # Simpan 'original_index' agar operasi CRUD (Create, Read, Update, Delete) tidak salah target
+            item_data_for_crud = {"type": "discussion", "index": original_index}
+            parent_item.setData(0, Qt.ItemDataRole.UserRole, item_data_for_crud)
             
             if not discussion_data.get("points", []):
                 date_str = discussion_data.get("date", "")
                 parent_item.setText(1, utils.format_date_with_day(date_str))
-                self.create_repetition_combobox(parent_item, 2, discussion_data.get("repetition_code", "R0D"), {"type": "discussion", "index": i})
-            
+                self.create_repetition_combobox(parent_item, 2, discussion_data.get("repetition_code", "R0D"), item_data_for_crud)
+            else:
+                # Jika ada points, tampilkan tanggal point terawal sebagai referensi
+                point_dates = [p.get("date") for p in discussion_data.get("points", []) if p.get("date")]
+                if point_dates:
+                    parent_item.setText(1, f"({utils.format_date_with_day(min(point_dates))})")
+
             for j, point_data in enumerate(discussion_data.get("points", [])):
                 child_item = QTreeWidgetItem(parent_item)
                 child_item.setText(0, point_data.get("point_text", "Point kosong"))
                 date_str = point_data.get("date", "")
                 child_item.setText(1, utils.format_date_with_day(date_str))
-                item_data = {"type": "point", "parent_index": i, "index": j}
+                # Pastikan parent_index adalah 'original_index'
+                item_data = {"type": "point", "parent_index": original_index, "index": j}
                 child_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
                 self.create_repetition_combobox(child_item, 2, point_data.get("repetition_code", "R0D"), item_data)
+        # --- AKHIR PERUBAHAN ---
                 
         self.content_tree.expandAll()
         self.update_button_states()
+        
+    # --- PENAMBAHAN: METODE BARU UNTUK SORTING ---
+    def sort_by_column(self, column_index):
+        """Mengubah state pengurutan saat header kolom diklik dan refresh tree."""
+        if self.sort_column == column_index:
+            # Balik urutan jika kolom yang sama diklik
+            self.sort_order = Qt.SortOrder.DescendingOrder if self.sort_order == Qt.SortOrder.AscendingOrder else Qt.SortOrder.AscendingOrder
+        else:
+            # Jika kolom baru diklik, urutkan secara ascending
+            self.sort_column = column_index
+            self.sort_order = Qt.SortOrder.AscendingOrder
+        
+        self.content_tree.header().setSortIndicator(self.sort_column, self.sort_order)
+        self.refresh_content_tree()
+    # --- AKHIR PENAMBAHAN ---
 
     # --- Bagian Event Handlers (Seleksi, Klik Tombol, dll) ---
     def topic_selected(self, current, previous):
@@ -228,8 +295,7 @@ class ContentManager(QMainWindow):
             except Exception as e:
                 QMessageBox.warning(self, "Gagal", f"Tidak dapat menghapus: {e}")
     
-    # ... (Metode lain seperti create_subject, rename_subject, delete_subject, add_discussion, dll. tetap sama)
-    # --- Metode CRUD lainnya diletakkan di sini ---
+    # --- Metode CRUD lainnya (tidak ada perubahan, tetap sama) ---
     def create_subject(self):
         if not self.current_topic_path: return
         name, ok = QInputDialog.getText(self, "Buat Subject Baru", "Nama Subject:")
@@ -239,6 +305,10 @@ class ContentManager(QMainWindow):
             self.current_subject_path = file_path
             self.save_current_subject()
             self.refresh_subject_list()
+            # Select the new subject
+            items = self.subject_list.findItems(name, Qt.MatchFlag.MatchExactly)
+            if items:
+                self.subject_list.setCurrentItem(items[0])
 
     def rename_subject(self):
         if not self.current_topic_path or not self.subject_list.currentItem(): return
@@ -266,6 +336,9 @@ class ContentManager(QMainWindow):
                 QMessageBox.warning(self, "Gagal", f"Tidak dapat menghapus file: {e}")
 
     def add_discussion(self):
+        if not self.current_subject_path: 
+            QMessageBox.information(self, "Info", "Pilih atau buat subject terlebih dahulu.")
+            return
         text, ok = QInputDialog.getText(self, "Tambah Diskusi", "Teks Diskusi:")
         if ok and text:
             date_str = datetime.now().strftime("%Y-%m-%d")
@@ -287,7 +360,7 @@ class ContentManager(QMainWindow):
         item = self.content_tree.currentItem()
         if not item or item.data(0, Qt.ItemDataRole.UserRole)["type"] != "discussion": return
         idx = item.data(0, Qt.ItemDataRole.UserRole)["index"]
-        if QMessageBox.question(self, "Konfirmasi", "Yakin hapus diskusi ini?") == QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, "Konfirmasi", "Yakin hapus diskusi ini dan semua point di dalamnya?") == QMessageBox.StandardButton.Yes:
             del self.current_content["content"][idx]
             self.save_and_refresh_content()
 
@@ -302,8 +375,9 @@ class ContentManager(QMainWindow):
         if ok and text:
             date_str = datetime.now().strftime("%Y-%m-%d")
             new_point = { "point_text": text, "repetition_code": "R0D", "date": date_str }
-            if not self.current_content["content"][parent_idx].get("points"):
+            if "points" not in self.current_content["content"][parent_idx]:
                  self.current_content["content"][parent_idx]["points"] = []
+            # Saat point pertama ditambahkan, hapus tanggal dan kode dari diskusi induk
             if not self.current_content["content"][parent_idx]["points"]:
                 self.current_content["content"][parent_idx]["date"] = None
                 self.current_content["content"][parent_idx]["repetition_code"] = None
@@ -328,6 +402,7 @@ class ContentManager(QMainWindow):
         parent_idx, point_idx = data["parent_index"], data["index"]
         if QMessageBox.question(self, "Konfirmasi", "Yakin hapus point ini?") == QMessageBox.StandardButton.Yes:
             del self.current_content["content"][parent_idx]["points"][point_idx]
+            # Jika semua point habis, kembalikan status tanggal ke diskusi induk
             if not self.current_content["content"][parent_idx]["points"]:
                 self.current_content["content"][parent_idx]["date"] = datetime.now().strftime("%Y-%m-%d")
                 self.current_content["content"][parent_idx]["repetition_code"] = "R0D"
@@ -358,7 +433,7 @@ class ContentManager(QMainWindow):
                 return content_list[item_data["index"]]
             elif item_type == "point":
                 return content_list[item_data["parent_index"]]["points"][item_data["index"]]
-        except IndexError:
+        except (IndexError, KeyError):
             return None
         return None
 
@@ -366,9 +441,13 @@ class ContentManager(QMainWindow):
         combo = QComboBox()
         combo.addItems(config.REPETITION_CODES)
         combo.setCurrentText(current_code)
-        combo.currentTextChanged.connect(
-            lambda new_code, data=item_data: self.repetition_code_changed(new_code, data)
-        )
+        # Cegah sinyal terhubung jika item tidak punya kode (misal, diskusi dengan point)
+        if current_code:
+            combo.currentTextChanged.connect(
+                lambda new_code, data=item_data: self.repetition_code_changed(new_code, data)
+            )
+        else:
+            combo.setEnabled(False)
         self.content_tree.setItemWidget(item, column, combo)
 
     def repetition_code_changed(self, new_code, item_data):
@@ -376,17 +455,22 @@ class ContentManager(QMainWindow):
         if not item_dict:
             self.refresh_content_tree()
             return
+            
         old_date_str = item_dict.get("date")
         if not old_date_str:
-            QMessageBox.warning(self, "Gagal", "Item ini tidak memiliki tanggal untuk diperbarui.")
-            self.refresh_content_tree()
+            # Refresh tree untuk sinkronisasi, karena combobox seharusnya tidak aktif
+            self.refresh_content_tree() 
             return
+            
         try:
             days_to_add = {'R0D': 0, 'R1D': 1, 'R3D': 3, 'R7D': 7}.get(new_code, 0)
-            new_date_str = (datetime.strptime(old_date_str, "%Y-%m-%d") + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
+            base_date = datetime.strptime(old_date_str, "%Y-%m-%d")
+            # Logika baru: penambahan hari seharusnya berdasarkan tanggal *sekarang* jika kode diubah, bukan tanggal lama
+            # Namun, untuk menjaga konsistensi, kita tetap gunakan tanggal lama sebagai basis.
+            # Jika ingin basis tanggal hari ini, baris di bawah diubah menjadi: base_date = datetime.now()
+            new_date_str = (base_date + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
         except (ValueError, TypeError):
-            QMessageBox.critical(self, "Error", "Format tanggal tidak valid.")
-            self.refresh_content_tree()
+            self.refresh_content_tree() # Refresh jika ada error
             return
         
         reply = QMessageBox.question(self, "Konfirmasi Perubahan",
@@ -401,6 +485,7 @@ class ContentManager(QMainWindow):
             self.save_current_subject()
             self.status_bar.showMessage(f"Item diperbarui ke {new_date_str} ({new_code})", 4000)
         
+        # Selalu refresh tree untuk menampilkan data terbaru (baik diubah maupun tidak)
         self.refresh_content_tree()
 
     def save_current_subject(self):
@@ -432,7 +517,7 @@ class ContentManager(QMainWindow):
                 elif data.get("type") == "point": point_sel, disc_sel = True, True
         
         self.btn_tambah_diskusi.setEnabled(subject_selected)
-        self.btn_edit_diskusi.setEnabled(disc_sel and not point_sel) # Edit diskusi hanya jika item diskusi dipilih
+        self.btn_edit_diskusi.setEnabled(disc_sel and not point_sel)
         self.btn_hapus_diskusi.setEnabled(disc_sel and not point_sel)
         self.btn_tambah_point.setEnabled(disc_sel)
         self.btn_edit_point.setEnabled(point_sel)
