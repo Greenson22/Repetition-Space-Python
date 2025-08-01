@@ -4,10 +4,10 @@ import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QListWidgetItem, QStatusBar, QStyle, QTreeWidget, QTreeWidgetItem
+    QMainWindow, QListWidgetItem, QStatusBar, QStyle, QTreeWidget, QTreeWidgetItem, QMenuBar
 )
-from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QFont, QAction, QActionGroup
+from PyQt6.QtCore import Qt, QSize, QSettings
 
 # Impor dari modul lokal yang baru dibuat
 import config
@@ -31,6 +31,7 @@ class ContentManager(QMainWindow):
         self.current_content = None
         self.sort_column = 1  # Default sort by Date
         self.sort_order = Qt.SortOrder.AscendingOrder
+        self.settings = QSettings("MyCompany", "ContentManager")
 
         # Inisialisasi modul-modul
         self.data_manager = DataManager(self.base_path)
@@ -38,15 +39,62 @@ class ContentManager(QMainWindow):
         self.ui_builder = UIBuilder(self)
         
         # Setup UI
+        self._create_menu_bar()
         self.ui_builder.setup_ui()
         self.setStatusBar(QStatusBar())
         self.status_bar = self.statusBar()
-        self.setStyleSheet(config.STYLESHEET)
         
         # Load data awal
+        self.load_theme()
         self.refresh_topic_list()
         self.handlers.update_button_states()
         self.content_tree.header().setSortIndicator(self.sort_column, self.sort_order)
+
+    def _create_menu_bar(self):
+        menu_bar = self.menuBar()
+        theme_menu = menu_bar.addMenu("Mode")
+
+        theme_group = QActionGroup(self)
+        theme_group.setExclusive(True)
+
+        light_action = QAction("Light", self, checkable=True)
+        light_action.triggered.connect(lambda: self.set_theme("light"))
+        theme_menu.addAction(light_action)
+        theme_group.addAction(light_action)
+
+        dark_action = QAction("Dark", self, checkable=True)
+        dark_action.triggered.connect(lambda: self.set_theme("dark"))
+        theme_menu.addAction(dark_action)
+        theme_group.addAction(dark_action)
+
+        system_action = QAction("System", self, checkable=True)
+        system_action.triggered.connect(lambda: self.set_theme("system"))
+        theme_menu.addAction(system_action)
+        theme_group.addAction(system_action)
+
+        current_theme = self.settings.value("theme", "system")
+        if current_theme == "light":
+            light_action.setChecked(True)
+        elif current_theme == "dark":
+            dark_action.setChecked(True)
+        else:
+            system_action.setChecked(True)
+
+    def set_theme(self, theme):
+        self.settings.setValue("theme", theme)
+        self.load_theme()
+
+    def load_theme(self):
+        theme = self.settings.value("theme", "system")
+        if theme == "dark":
+            self.setStyleSheet(config.DARK_STYLESHEET)
+        elif theme == "light":
+            self.setStyleSheet(config.LIGHT_STYLESHEET)
+        else: # System
+            if self.palette().window().color().lightness() < 128:
+                 self.setStyleSheet(config.DARK_STYLESHEET)
+            else:
+                 self.setStyleSheet(config.LIGHT_STYLESHEET)
 
     # --- Metode untuk Refresh Tampilan ---
     def refresh_topic_list(self):
