@@ -81,3 +81,22 @@ LIGHT_STYLESHEET = """
     QCalendarWidget QSpinBox { background-color: #FFFFFF; color: #000000; }
     QCalendarWidget QAbstractItemView { background-color: #FFFFFF; selection-background-color: #0078D7; selection-color: #FFFFFF; }
 """
+
+NORDIC_TWILIGHT_STYLESHEET = """
+    QMainWindow, QWidget, QDialog { background-color: #2E3440; color: #ECEFF4; font-family: Segoe UI; }
+    QSplitter::handle { background-color: #4C566A; width: 3px; }
+    QLabel { color: #E5E9F0; padding-bottom: 5px; }
+    QListWidget, QTreeWidget { background-color: #3B4252; border: 1px solid #4C566A; border-radius: 5px; padding: 5px; }
+    QListWidget::item:selected, QTreeWidget::item:selected { background-color: #B48EAD; color: #ECEFF4; }
+    QComboBox { background-color: #D8DEE9; color: #2E3440; border-radius: 3px; padding: 1px 4px; }
+    QPushButton { background-color: #5E81AC; border: none; padding: 8px; border-radius: 5px; font-weight: bold; }
+    QPushButton:hover { background-color: #81A1C1; }
+    QPushButton:disabled { background-color: #434C5E; color: #6F7A8C; }
+    QHeaderView::section { background-color: #434C5E; padding: 4px; border: 1px solid #4C566A; color: #ECEFF4; font-weight: bold; }
+    QHeaderView::down-arrow { subcontrol-origin: padding; subcontrol-position: center right; width: 12px; }
+    QHeaderView::up-arrow { subcontrol-origin: padding; subcontrol-position: center right; width: 12px; }
+    QCalendarWidget QToolButton { color: #E5E9F0; }
+    QCalendarWidget QMenu { background-color: #4C566A; }
+    QCalendarWidget QSpinBox { background-color: #D8DEE9; color: #2E3440; }
+    QCalendarWidget QAbstractItemView { background-color: #3B4252; selection-background-color: #B48EAD; selection-color: #ECEFF4; }
+"""

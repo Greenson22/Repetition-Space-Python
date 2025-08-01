@@ -80,6 +80,11 @@ class ContentManager(QMainWindow):
         dark_action.triggered.connect(lambda: self.set_theme("dark"))
         theme_menu.addAction(dark_action)
         theme_group.addAction(dark_action)
+        
+        nordic_twilight_action = QAction("Nordic Twilight", self, checkable=True)
+        nordic_twilight_action.triggered.connect(lambda: self.set_theme("nordic_twilight"))
+        theme_menu.addAction(nordic_twilight_action)
+        theme_group.addAction(nordic_twilight_action)
 
         system_action = QAction("System", self, checkable=True)
         system_action.triggered.connect(lambda: self.set_theme("system"))
@@ -89,6 +94,7 @@ class ContentManager(QMainWindow):
         current_theme = self.settings.value("theme", "system")
         if current_theme == "light": light_action.setChecked(True)
         elif current_theme == "dark": dark_action.setChecked(True)
+        elif current_theme == "nordic_twilight": nordic_twilight_action.setChecked(True)
         else: system_action.setChecked(True)
         
         # --- Menu Skala ---
@@ -174,6 +180,8 @@ class ContentManager(QMainWindow):
             stylesheet = config.DARK_STYLESHEET
         elif theme == "light":
             stylesheet = config.LIGHT_STYLESHEET
+        elif theme == "nordic_twilight":
+            stylesheet = config.NORDIC_TWILIGHT_STYLESHEET
         else: # System
             if self.palette().window().color().lightness() < 128:
                  stylesheet = config.DARK_STYLESHEET
