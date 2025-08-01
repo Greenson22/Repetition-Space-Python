@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QLabel, QListWidget, 
-    QTreeWidget, QPushButton, QSplitter, QFrame, QHeaderView
+    QTreeWidget, QPushButton, QSplitter, QFrame, QHeaderView, QLineEdit
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import QSize
@@ -132,6 +132,16 @@ class UIBuilder:
         
         self.win.content_title_label = QLabel("📝 Content")
         
+        # --- Search Bar ---
+        search_layout = QHBoxLayout()
+        self.win.search_content_input = QLineEdit()
+        self.win.search_content_input.setPlaceholderText("Cari discussion atau point...")
+        self.win.search_content_input.returnPressed.connect(self.win.handlers.search_content)
+        self.win.btn_search_content = QPushButton("Cari")
+        self.win.btn_search_content.clicked.connect(self.win.handlers.search_content)
+        search_layout.addWidget(self.win.search_content_input)
+        search_layout.addWidget(self.win.btn_search_content)
+        
         self.win.content_tree = QTreeWidget()
         self.win.content_tree.setHeaderLabels(["Content", "Date", "Code"])
         self.win.content_tree.header().resizeSection(0, 350)
@@ -156,6 +166,7 @@ class UIBuilder:
         ])
         
         layout.addWidget(self.win.content_title_label)
+        layout.addLayout(search_layout) # Tambahkan search bar
         layout.addWidget(self.win.content_tree)
         layout.addWidget(QLabel("Manajemen Diskusi:"))
         layout.addLayout(discussion_buttons)

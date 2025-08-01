@@ -37,6 +37,7 @@ class ContentManager(QMainWindow):
         self.sort_order = Qt.SortOrder.AscendingOrder
         self.settings = QSettings("MyCompany", "ContentManager")
         self.date_filter = "all"
+        self.search_query = "" # Properti baru untuk pencarian
         self.scale_config = {} 
 
         # Inisialisasi modul-modul
@@ -296,23 +297,45 @@ class ContentManager(QMainWindow):
         self.current_content = self.data_manager.load_content(self.current_subject_path)
         discussions = self.current_content.get("content", [])
         
+        # --- Lakukan filter pencarian jika ada query ---
+        query = self.search_query.lower()
+        if query:
+            searched_discussions = []
+            for index, disc_data in enumerate(discussions):
+                # Cek di judul diskusi
+                if query in disc_data.get("discussion", "").lower():
+                    searched_discussions.append({"data": disc_data, "original_index": index})
+                    continue 
+                # Cek di points
+                matching_points = [p for p in disc_data.get("points", []) if query in p.get("point_text", "").lower()]
+                if matching_points:
+                    # Jika ditemukan di point, tampilkan diskusi dengan point yang cocok saja
+                    new_disc_data = disc_data.copy()
+                    new_disc_data["points"] = matching_points
+                    searched_discussions.append({"data": new_disc_data, "original_index": index})
+            discussions_to_process = searched_discussions
+        else:
+            discussions_to_process = [{"data": data, "original_index": index} for index, data in enumerate(discussions)]
+        
+        # --- Lakukan filter tanggal ---
         today_str = datetime.now().strftime("%Y-%m-%d")
         filtered_discussions = []
-        if self.date_filter == "today":
-            for index, disc_data in enumerate(discussions):
-                original_discussion = {"data": disc_data, "original_index": index}
-                
+        if self.date_filter == "today" and not query: # Filter tanggal hanya jika tidak sedang mencari
+            for item in discussions_to_process:
+                disc_data = item["data"]
+                original_index = item["original_index"]
+
                 if disc_data.get("date") == today_str and not disc_data.get("points"):
-                    filtered_discussions.append(original_discussion)
+                    filtered_discussions.append(item)
                     continue
 
                 matching_points = [p for p in disc_data.get("points", []) if p.get("date") == today_str]
                 if matching_points:
                     new_disc_data = disc_data.copy()
                     new_disc_data["points"] = matching_points
-                    filtered_discussions.append({"data": new_disc_data, "original_index": index})
-        else: # "all"
-            filtered_discussions = [{"data": data, "original_index": index} for index, data in enumerate(discussions)]
+                    filtered_discussions.append({"data": new_disc_data, "original_index": original_index})
+        else:
+            filtered_discussions = discussions_to_process
 
         indexed_discussions = [(item["original_index"], item["data"]) for item in filtered_discussions]
 
@@ -356,26 +379,34 @@ class ContentManager(QMainWindow):
                 child_item.setText(1, utils.format_date_with_day(point_data.get("date", "")))
                 
                 original_point_index = -1
+                # Mencari index asli dari point (penting saat searching/filtering)
                 original_points = self.current_content["content"][original_index].get("points", [])
                 for idx, orig_point in enumerate(original_points):
-                    if orig_point == point_data:
+                    # Mencocokkan berdasarkan teks dan tanggal untuk keunikan
+                    if (orig_point.get("point_text") == point_data.get("point_text") and 
+                        orig_point.get("date") == point_data.get("date")):
                         original_point_index = idx
                         break
-
-                item_data = {"type": "point", "parent_index": original_index, "index": original_point_index}
-                child_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
-                self.handlers.create_repetition_combobox(child_item, 2, point_data.get("repetition_code", "R0D"), item_data)
                 
-                if selected_item_data == item_data:
-                    item_to_reselect = child_item
+                if original_point_index != -1:
+                    item_data = {"type": "point", "parent_index": original_index, "index": original_point_index}
+                    child_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
+                    self.handlers.create_repetition_combobox(child_item, 2, point_data.get("repetition_code", "R0D"), item_data)
+                    
+                    if selected_item_data == item_data:
+                        item_to_reselect = child_item
             
-            if original_index in expanded_indices:
+            # Selalu expand hasil pencarian
+            if query:
+                parent_item.setExpanded(True)
+            elif original_index in expanded_indices:
                 parent_item.setExpanded(True)
         
         if item_to_reselect:
             self.content_tree.setCurrentItem(item_to_reselect)
             
         self.handlers.update_button_states()
+
 
     def save_and_refresh_content(self):
         """Menyimpan konten saat ini dan merefresh tampilan."""
