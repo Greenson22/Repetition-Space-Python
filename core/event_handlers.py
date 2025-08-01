@@ -1,4 +1,4 @@
-# file: test/event_handlers.py
+# file: test/core/event_handlers.py
 
 import os
 from datetime import datetime, timedelta
@@ -199,16 +199,14 @@ class EventHandlers:
         if not item_dict or not item_dict.get("date"):
             self.win.refresh_content_tree()
             return
-        try:
-            days_to_add = config.REPETITION_CODES_DAYS.get(new_code, 0)
-            new_date_str = (datetime.strptime(item_dict["date"], "%Y-%m-%d") + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
-        except (ValueError, TypeError):
-            self.win.refresh_content_tree()
-            return
         
+        days_to_add = config.REPETITION_CODES_DAYS.get(new_code, 0)
+        current_date = datetime.strptime(item_dict["date"], "%Y-%m-%d")
+        new_date_str = (current_date + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
+
         reply = QMessageBox.question(self.win, "Konfirmasi Perubahan",
             f"Anda akan mengubah kode repetisi menjadi <b>{new_code}</b>.<br>"
-            f"Tanggal akan diperbarui ke <b>{new_date_str}</b>.<br><br>"
+            f"Tanggal akan diperbarui dari {current_date.strftime('%Y-%m-%d')} ke <b>{new_date_str}</b>.<br><br>"
             "Apakah Anda yakin?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             
@@ -217,7 +215,7 @@ class EventHandlers:
             item_dict["repetition_code"] = new_code
             self.win.save_and_refresh_content()
         else:
-            self.win.refresh_content_tree() # Refresh untuk mengembalikan combo box
+            self.win.refresh_content_tree()
 
     # --- Logika Pengurutan & State ---
     def sort_by_column(self, column_index):

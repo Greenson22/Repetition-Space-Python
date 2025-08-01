@@ -3,6 +3,14 @@
 BASE_PATH = "data/contents/topics"
 REPETITION_CODES = ["R0D", "R1D", "R3D", "R7D"]
 
+# TAMBAHKAN INI
+REPETITION_CODES_DAYS = {
+    "R0D": 0,
+    "R1D": 1,
+    "R3D": 3,
+    "R7D": 7,
+}
+
 DARK_STYLESHEET = """
     QMainWindow, QWidget, QDialog { background-color: #2E3440; color: #D8DEE9; font-family: Segoe UI; font-size: 10pt; }
     QSplitter::handle { background-color: #4C566A; width: 3px; }
@@ -13,26 +21,9 @@ DARK_STYLESHEET = """
     QPushButton { background-color: #4C566A; border: none; padding: 8px; border-radius: 5px; font-weight: bold; }
     QPushButton:hover { background-color: #5E81AC; }
     QPushButton:disabled { background-color: #434C5E; color: #6F7A8C; }
-    
-    QHeaderView::section { 
-        background-color: #434C5E; 
-        padding: 4px; 
-        border: 1px solid #4C566A;
-        color: #ECEFF4; /* Menambahkan warna teks agar terlihat */
-        font-weight: bold; /* Menebalkan font header */
-    }
-
-    QHeaderView::down-arrow {
-        subcontrol-origin: padding;
-        subcontrol-position: center right;
-        width: 12px;
-    }
-    QHeaderView::up-arrow {
-        subcontrol-origin: padding;
-        subcontrol-position: center right;
-        width: 12px;
-    }
-
+    QHeaderView::section { background-color: #434C5E; padding: 4px; border: 1px solid #4C566A; color: #ECEFF4; font-weight: bold; }
+    QHeaderView::down-arrow { subcontrol-origin: padding; subcontrol-position: center right; width: 12px; }
+    QHeaderView::up-arrow { subcontrol-origin: padding; subcontrol-position: center right; width: 12px; }
     QCalendarWidget QToolButton { color: white; }
     QCalendarWidget QMenu { background-color: #4C566A; }
     QCalendarWidget QSpinBox { background-color: #D8DEE9; color: #2E3440; }
@@ -49,26 +40,9 @@ LIGHT_STYLESHEET = """
     QPushButton { background-color: #E0E0E0; border: 1px solid #D0D0D0; padding: 8px; border-radius: 5px; font-weight: bold; }
     QPushButton:hover { background-color: #D0D0D0; }
     QPushButton:disabled { background-color: #F5F5F5; color: #A0A0A0; }
-    
-    QHeaderView::section { 
-        background-color: #E0E0E0; 
-        padding: 4px; 
-        border: 1px solid #D0D0D0;
-        color: #000000;
-        font-weight: bold;
-    }
-
-    QHeaderView::down-arrow {
-        subcontrol-origin: padding;
-        subcontrol-position: center right;
-        width: 12px;
-    }
-    QHeaderView::up-arrow {
-        subcontrol-origin: padding;
-        subcontrol-position: center right;
-        width: 12px;
-    }
-
+    QHeaderView::section { background-color: #E0E0E0; padding: 4px; border: 1px solid #D0D0D0; color: #000000; font-weight: bold; }
+    QHeaderView::down-arrow { subcontrol-origin: padding; subcontrol-position: center right; width: 12px; }
+    QHeaderView::up-arrow { subcontrol-origin: padding; subcontrol-position: center right; width: 12px; }
     QCalendarWidget QToolButton { color: black; }
     QCalendarWidget QMenu { background-color: #FFFFFF; }
     QCalendarWidget QSpinBox { background-color: #FFFFFF; color: #000000; }
