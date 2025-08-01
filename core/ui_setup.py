@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QLabel, QListWidget, 
-    QTreeWidget, QPushButton, QSplitter, QFrame
+    QTreeWidget, QPushButton, QSplitter, QFrame, QHeaderView
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import QSize
@@ -46,7 +46,10 @@ class UIBuilder:
         self.win.task_title_label = QLabel("✔️ Tasks")
         self.win.task_tree = QTreeWidget()
         self.win.task_tree.setHeaderLabels(["Task", "Count", "Date"])
-        self.win.task_tree.header().resizeSection(0, 150)
+        # Mengubah ukuran kolom agar menyesuaikan dengan isi
+        self.win.task_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.win.task_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.win.task_tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.win.task_tree.currentItemChanged.connect(self.win.handlers.update_button_states)
         
         task_buttons = self._create_button_layout([
