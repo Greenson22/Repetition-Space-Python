@@ -4,9 +4,9 @@ import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QListWidgetItem, QStatusBar, QStyle, QTreeWidget, QTreeWidgetItem, QMenuBar, QRadioButton, QApplication
+    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem
 )
-from PyQt6.QtGui import QFont, QAction, QActionGroup
+from PyQt6.QtGui import QFont, QAction, QActionGroup, QIcon
 from PyQt6.QtCore import Qt, QSize, QSettings
 
 # Impor dari modul lokal yang baru dibuat
@@ -22,6 +22,8 @@ class ContentManager(QMainWindow):
         
         self.setWindowTitle("Content Manager")
         self.setGeometry(100, 100, 1200, 650)
+
+        self.setWindowIcon(QIcon('images/icons/bird_2.png'))
         
         # Inisialisasi properti
         self.base_path = config.BASE_PATH
