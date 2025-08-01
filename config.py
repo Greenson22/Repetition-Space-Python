@@ -1,7 +1,7 @@
 # file: config.py
 
 BASE_PATH = "data/contents/topics"
-REPETITION_CODES = ["R0D", "R1D", "R3D", "R7D"]
+REPETITION_CODES = ["R0D", "R1D", "R3D", "R7D", "R7D1", "R7D2", "R7D3", "R30D", "Finish"]
 
 # TAMBAHKAN INI
 REPETITION_CODES_DAYS = {
@@ -9,6 +9,10 @@ REPETITION_CODES_DAYS = {
     "R1D": 1,
     "R3D": 3,
     "R7D": 7,
+    "R7D1": 7,
+    "R7D2": 7,
+    "R7D3": 7,
+    "R30D": 30,
 }
 
 DARK_STYLESHEET = """
