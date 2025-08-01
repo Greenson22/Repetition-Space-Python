@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QListWidgetItem, QStatusBar, QStyle, QTreeWidget, QTreeWidgetItem, QMenuBar
+    QMainWindow, QListWidgetItem, QStatusBar, QStyle, QTreeWidget, QTreeWidgetItem, QMenuBar, QRadioButton
 )
 from PyQt6.QtGui import QFont, QAction, QActionGroup
 from PyQt6.QtCore import Qt, QSize, QSettings
@@ -32,6 +32,7 @@ class ContentManager(QMainWindow):
         self.sort_column = 1  # Default sort by Date
         self.sort_order = Qt.SortOrder.AscendingOrder
         self.settings = QSettings("MyCompany", "ContentManager")
+        self.date_filter = "all" # Opsi filter: "all" atau "today"
 
         # Inisialisasi modul-modul
         self.data_manager = DataManager(self.base_path)
@@ -52,8 +53,9 @@ class ContentManager(QMainWindow):
 
     def _create_menu_bar(self):
         menu_bar = self.menuBar()
-        theme_menu = menu_bar.addMenu("Mode")
 
+        # --- Menu Tema ---
+        theme_menu = menu_bar.addMenu("Mode")
         theme_group = QActionGroup(self)
         theme_group.setExclusive(True)
 
@@ -71,14 +73,36 @@ class ContentManager(QMainWindow):
         system_action.triggered.connect(lambda: self.set_theme("system"))
         theme_menu.addAction(system_action)
         theme_group.addAction(system_action)
-
+        
         current_theme = self.settings.value("theme", "system")
-        if current_theme == "light":
-            light_action.setChecked(True)
-        elif current_theme == "dark":
-            dark_action.setChecked(True)
+        if current_theme == "light": light_action.setChecked(True)
+        elif current_theme == "dark": dark_action.setChecked(True)
+        else: system_action.setChecked(True)
+
+        # --- Menu Filter Tanggal ---
+        filter_menu = menu_bar.addMenu("Filter")
+        filter_group = QActionGroup(self)
+        filter_group.setExclusive(True)
+
+        all_action = QAction("Tampilkan Semua", self, checkable=True)
+        all_action.triggered.connect(lambda: self.set_date_filter("all"))
+        filter_menu.addAction(all_action)
+        filter_group.addAction(all_action)
+
+        today_action = QAction("Tampilkan Hari Ini", self, checkable=True)
+        today_action.triggered.connect(lambda: self.set_date_filter("today"))
+        filter_menu.addAction(today_action)
+        filter_group.addAction(today_action)
+
+        if self.date_filter == "all":
+            all_action.setChecked(True)
         else:
-            system_action.setChecked(True)
+            today_action.setChecked(True)
+
+    def set_date_filter(self, filter_type):
+        """Mengatur filter tanggal dan merefresh tampilan konten."""
+        self.date_filter = filter_type
+        self.refresh_content_tree()
 
     def set_theme(self, theme):
         self.settings.setValue("theme", theme)
@@ -160,7 +184,30 @@ class ContentManager(QMainWindow):
         
         self.current_content = self.data_manager.load_content(self.current_subject_path)
         discussions = self.current_content.get("content", [])
-        indexed_discussions = list(enumerate(discussions))
+        
+        # --- Logika Filter Tanggal ---
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        filtered_discussions = []
+        if self.date_filter == "today":
+            for index, disc_data in enumerate(discussions):
+                original_discussion = {"data": disc_data, "original_index": index}
+                
+                # Cek tanggal diskusi utama
+                if disc_data.get("date") == today_str and not disc_data.get("points"):
+                    filtered_discussions.append(original_discussion)
+                    continue
+
+                # Cek tanggal pada points
+                matching_points = [p for p in disc_data.get("points", []) if p.get("date") == today_str]
+                if matching_points:
+                    # Buat salinan diskusi hanya dengan point yang cocok
+                    new_disc_data = disc_data.copy()
+                    new_disc_data["points"] = matching_points
+                    filtered_discussions.append({"data": new_disc_data, "original_index": index})
+        else: # "all"
+            filtered_discussions = [{"data": data, "original_index": index} for index, data in enumerate(discussions)]
+
+        indexed_discussions = [(item["original_index"], item["data"]) for item in filtered_discussions]
 
         def get_sort_key(indexed_item):
             _, item_data = indexed_item
@@ -200,7 +247,16 @@ class ContentManager(QMainWindow):
                 child_item = QTreeWidgetItem(parent_item)
                 child_item.setText(0, point_data.get("point_text", "Point kosong"))
                 child_item.setText(1, utils.format_date_with_day(point_data.get("date", "")))
-                item_data = {"type": "point", "parent_index": original_index, "index": j}
+                
+                # Cari index asli dari point
+                original_point_index = -1
+                original_points = self.current_content["content"][original_index].get("points", [])
+                for idx, orig_point in enumerate(original_points):
+                    if orig_point == point_data:
+                        original_point_index = idx
+                        break
+
+                item_data = {"type": "point", "parent_index": original_index, "index": original_point_index}
                 child_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
                 self.handlers.create_repetition_combobox(child_item, 2, point_data.get("repetition_code", "R0D"), item_data)
                 
@@ -215,9 +271,10 @@ class ContentManager(QMainWindow):
             
         self.handlers.update_button_states()
 
+
     def save_and_refresh_content(self):
         """Menyimpan konten saat ini dan merefresh tampilan."""
         self.handlers.update_earliest_date_in_metadata()
         self.data_manager.save_content(self.current_subject_path, self.current_content)
-        self.refresh_content_tree()  # Ini sekarang aman untuk dipanggil
-        self.refresh_subject_list()  # Ini juga sekarang aman
+        self.refresh_content_tree()
+        self.refresh_subject_list()
