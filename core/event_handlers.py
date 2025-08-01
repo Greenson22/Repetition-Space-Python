@@ -313,13 +313,31 @@ class EventHandlers:
 
     def repetition_code_changed(self, new_code, item_data):
         item_dict = self.get_item_dict(item_data)
-        if not item_dict or not item_dict.get("date"):
+        if not item_dict:
             self.win.refresh_content_tree()
             return
         
+        # --- PERUBAHAN DIMULAI DI SINI ---
+        
+        # Jika item tidak punya tanggal (misal: baru dibuat atau statusnya 'finished'),
+        # gunakan tanggal hari ini sebagai basis.
+        current_date_str = item_dict.get("date")
+        if not current_date_str:
+            current_date = datetime.now()
+            # Langsung set tanggal saat ini ke item jika belum ada dan beri kode default
+            item_dict["date"] = current_date.strftime("%Y-%m-%d")
+            if not item_dict.get("repetition_code"):
+                 item_dict["repetition_code"] = "R0D"
+        else:
+            current_date = datetime.strptime(current_date_str, "%Y-%m-%d")
+
         days_to_add = config.REPETITION_CODES_DAYS.get(new_code, 0)
-        current_date = datetime.strptime(item_dict["date"], "%Y-%m-%d")
         new_date_str = (current_date + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
+
+        # Tidak perlu konfirmasi jika kode sama
+        if new_code == item_dict.get("repetition_code") and current_date.strftime("%Y-%m-%d") == item_dict.get("date"):
+            self.win.refresh_content_tree()
+            return
 
         reply = QMessageBox.question(self.win, "Konfirmasi Perubahan",
             f"Anda akan mengubah kode repetisi menjadi <b>{new_code}</b>.<br>"
@@ -332,7 +350,10 @@ class EventHandlers:
             item_dict["repetition_code"] = new_code
             self.win.save_and_refresh_content()
         else:
+            # Kembalikan tampilan ke state sebelum perubahan jika dibatalkan
             self.win.refresh_content_tree()
+        # --- PERUBAHAN BERAKHIR DI SINI ---
+
 
     # --- Logika Pengurutan & State ---
     def sort_by_column(self, column_index):
@@ -400,11 +421,22 @@ class EventHandlers:
     def create_repetition_combobox(self, item, column, current_code, item_data):
         combo = QComboBox()
         combo.addItems(config.REPETITION_CODES)
-        combo.setCurrentText(current_code)
-        if current_code:
+        if current_code: # Hanya set jika ada kode
+             combo.setCurrentText(current_code)
+        
+        # Selalu aktifkan combo box agar bisa memicu perubahan
+        item_dict = self.get_item_dict(item_data)
+        can_have_date = False
+        if item_data.get("type") == "point":
+            can_have_date = True
+        elif item_data.get("type") == "discussion" and not (item_dict and item_dict.get("points")):
+            can_have_date = True
+        
+        combo.setEnabled(can_have_date)
+
+        if can_have_date:
             combo.currentTextChanged.connect(
                 lambda new_code, data=item_data: self.repetition_code_changed(new_code, data)
             )
-        else:
-            combo.setEnabled(False)
+
         self.win.content_tree.setItemWidget(item, column, combo)
