@@ -105,18 +105,56 @@ class ContentManager(QMainWindow):
             self.topic_list.addItem(QListWidgetItem(icon, folder))
 
     def refresh_subject_list(self):
+        # Simpan teks item yang sedang dipilih untuk diseleksi ulang nanti
+        current_item_text = None
+        if self.subject_list.currentItem():
+            current_item_text = self.subject_list.currentItem().text()
+
+        # Blokir sinyal untuk mencegah 'subject_selected' terpanggil saat me-refresh list
+        self.subject_list.blockSignals(True)
+        
         self.subject_list.clear()
         icon = self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
         subjects = self.data_manager.get_subjects(self.current_topic_path)
+        item_to_reselect = None
+        
         for name, date, code in subjects:
             display_text = name
             if date and code:
                 display_text += f"\n({utils.format_date_with_day(date)} - {code})"
+            
             item = QListWidgetItem(icon, display_text)
             self.subject_list.addItem(item)
+            
+            # Jika teksnya sama dengan yang dipilih sebelumnya, tandai untuk diseleksi ulang
+            if display_text == current_item_text:
+                item_to_reselect = item
+        
+        # Seleksi ulang item yang sebelumnya dipilih
+        if item_to_reselect:
+            self.subject_list.setCurrentItem(item_to_reselect)
 
+        # Buka kembali blokir sinyal
+        self.subject_list.blockSignals(False)
 
     def refresh_content_tree(self):
+        # --- Simpan State ---
+        expanded_indices = set()
+        selected_item_data = None
+
+        current_item = self.content_tree.currentItem()
+        if current_item:
+            selected_item_data = current_item.data(0, Qt.ItemDataRole.UserRole)
+
+        if self.content_tree.topLevelItemCount() > 0:
+            for i in range(self.content_tree.topLevelItemCount()):
+                item = self.content_tree.topLevelItem(i)
+                if item.isExpanded():
+                    item_data = item.data(0, Qt.ItemDataRole.UserRole)
+                    if item_data and item_data.get("type") == "discussion":
+                        expanded_indices.add(item_data.get("index"))
+        
+        # --- Proses Refresh ---
         self.content_tree.clear()
         if not self.current_subject_path: return
         
@@ -124,28 +162,24 @@ class ContentManager(QMainWindow):
         discussions = self.current_content.get("content", [])
         indexed_discussions = list(enumerate(discussions))
 
-        # Logika pengurutan
         def get_sort_key(indexed_item):
             _, item_data = indexed_item
-            if self.sort_column == 0:  # Sort by Content
-                return item_data.get("discussion", "").lower()
-            elif self.sort_column == 1:  # Sort by Date
+            if self.sort_column == 0: return item_data.get("discussion", "").lower()
+            elif self.sort_column == 1:
                 date_str = item_data.get("date")
                 if not date_str:
                     point_dates = [p.get("date") for p in item_data.get("points", []) if p.get("date")]
                     date_str = min(point_dates) if point_dates else "9999-12-31"
-                try:
-                    return datetime.strptime(date_str, "%Y-%m-%d")
-                except ValueError:
-                    return datetime.max
-            elif self.sort_column == 2:  # Sort by Code
-                return item_data.get("repetition_code", "Z")
+                try: return datetime.strptime(date_str, "%Y-%m-%d")
+                except (ValueError, TypeError): return datetime.max
+            elif self.sort_column == 2: return item_data.get("repetition_code", "Z")
             return ""
 
         is_reverse = (self.sort_order == Qt.SortOrder.DescendingOrder)
         sorted_indexed_discussions = sorted(indexed_discussions, key=get_sort_key, reverse=is_reverse)
         
-        # Populasi tree widget
+        item_to_reselect = None
+
         for original_index, discussion_data in sorted_indexed_discussions:
             parent_item = QTreeWidgetItem(self.content_tree)
             parent_item.setText(0, discussion_data.get("discussion", "Diskusi kosong"))
@@ -157,8 +191,10 @@ class ContentManager(QMainWindow):
                 self.handlers.create_repetition_combobox(parent_item, 2, discussion_data.get("repetition_code", "R0D"), item_data_for_crud)
             else:
                 point_dates = [p.get("date") for p in discussion_data.get("points", []) if p.get("date")]
-                if point_dates:
-                    parent_item.setText(1, f"({utils.format_date_with_day(min(point_dates))})")
+                if point_dates: parent_item.setText(1, f"({utils.format_date_with_day(min(point_dates))})")
+
+            if selected_item_data == item_data_for_crud:
+                item_to_reselect = parent_item
 
             for j, point_data in enumerate(discussion_data.get("points", [])):
                 child_item = QTreeWidgetItem(parent_item)
@@ -168,17 +204,20 @@ class ContentManager(QMainWindow):
                 child_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
                 self.handlers.create_repetition_combobox(child_item, 2, point_data.get("repetition_code", "R0D"), item_data)
                 
-        self.content_tree.expandAll()
+                if selected_item_data == item_data:
+                    item_to_reselect = child_item
+            
+            if original_index in expanded_indices:
+                parent_item.setExpanded(True)
+        
+        if item_to_reselect:
+            self.content_tree.setCurrentItem(item_to_reselect)
+            
         self.handlers.update_button_states()
 
     def save_and_refresh_content(self):
         """Menyimpan konten saat ini dan merefresh tampilan."""
-        # Panggil handler untuk mengupdate metadata sebelum menyimpan
         self.handlers.update_earliest_date_in_metadata()
-        
-        # Simpan konten dengan metadata yang sudah diperbarui
         self.data_manager.save_content(self.current_subject_path, self.current_content)
-        
-        # Refresh tampilan
-        self.refresh_content_tree()
-        self.refresh_subject_list() # Untuk update list subject secara real-time
+        self.refresh_content_tree()  # Ini sekarang aman untuk dipanggil
+        self.refresh_subject_list()  # Ini juga sekarang aman
