@@ -3,7 +3,8 @@
 import os
 from datetime import datetime, timedelta
 
-from PyQt6.QtWidgets import QMessageBox, QInputDialog, QComboBox
+from PyQt6.QtWidgets import QMessageBox, QInputDialog, QComboBox, QFileDialog
+
 from PyQt6.QtCore import Qt
 
 import utils
@@ -15,6 +16,37 @@ class EventHandlers:
     def __init__(self, main_window):
         self.win = main_window
         self.data_manager = main_window.data_manager
+
+    def backup_all_topics(self):
+        """Membuat backup semua topic dalam format zip."""
+        # Menentukan nama file default, contoh: backup-2023-10-27_10-30-00.zip
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        default_filename = f"backup-topics-{timestamp}.zip"
+
+        # Membuka dialog untuk menyimpan file
+        save_path, _ = QFileDialog.getSaveFileName(
+            self.win,
+            "Simpan Backup Topics",
+            default_filename,
+            "Zip Files (*.zip)"
+        )
+
+        if save_path:
+            try:
+                # Memanggil data_manager untuk membuat zip
+                self.data_manager.create_backup_zip(save_path)
+                QMessageBox.information(
+                    self.win,
+                    "Backup Berhasil",
+                    f"Semua topics berhasil di-backup ke:\n{save_path}"
+                )
+            except Exception as e:
+                QMessageBox.critical(
+                    self.win,
+                    "Backup Gagal",
+                    f"Terjadi kesalahan saat membuat backup:\n{e}"
+                )
+
 
     def update_earliest_date_in_metadata(self):
         """Mencari tanggal & kode paling awal dan menyimpannya di metadata."""

@@ -13,6 +13,17 @@ class DataManager:
         if not os.path.exists(self.base_path):
             os.makedirs(self.base_path)
 
+    def create_backup_zip(self, zip_path):
+        """Membuat arsip zip dari direktori base_path."""
+        # Pastikan path untuk zip file tidak menyertakan ekstensi .zip,
+        # karena make_archive akan menambahkannya secara otomatis.
+        shutil.make_archive(
+            base_name=os.path.splitext(zip_path)[0],
+            format='zip',
+            root_dir=os.path.dirname(self.base_path), # Direktori 'di atas' topics
+            base_dir=os.path.basename(self.base_path) # Nama folder 'topics' itu sendiri
+        )
+
     def get_topics(self):
         """Mendapatkan daftar semua topic (folder) beserta ikonnya."""
         topics = []

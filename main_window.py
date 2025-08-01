@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem
+    QMainWindow, QListWidgetItem, QStatusBar, QTreeWidgetItem, QFileDialog
 )
 from PyQt6.QtGui import QFont, QAction, QActionGroup, QIcon
 from PyQt6.QtCore import Qt, QSize, QSettings
@@ -113,6 +113,13 @@ class ContentManager(QMainWindow):
             all_action.setChecked(True)
         else:
             today_action.setChecked(True)
+
+        # --- Menu Backup ---
+        backup_menu = menu_bar.addMenu("Backup")
+        backup_action = QAction("Buat Cadangan...", self)
+        backup_action.triggered.connect(self.handlers.backup_all_topics)
+        backup_menu.addAction(backup_action)
+
 
     def set_date_filter(self, filter_type):
         """Mengatur filter tanggal dan merefresh tampilan konten."""
