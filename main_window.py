@@ -10,7 +10,7 @@ from core.data_manager import DataManager
 from core.event_handlers import EventHandlers
 from core.ui_manager import UIManager
 from core.state_manager import StateManager
-from core.refresh_manager import RefreshManager
+from core.refresh_manager import RefreshManager # MODIFIED
 from utils import resource_path
 
 class ContentManager(QMainWindow):
@@ -42,7 +42,7 @@ class ContentManager(QMainWindow):
         self.ui_builder = UIBuilder(self)
         self.ui_manager = UIManager(self)
         self.state_manager = StateManager(self)
-        self.refresh_manager = RefreshManager(self)
+        self.refresh_manager = RefreshManager(self) # MODIFIED
 
         # --- Setup UI ---
         self.ui_builder.setup_ui()
