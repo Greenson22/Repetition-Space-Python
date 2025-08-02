@@ -83,6 +83,7 @@ class UIBuilder:
             ("btn_buat_kategori", "Buat", self.win.handlers.create_task_category),
             ("btn_ubah_kategori", "Ubah Nama", self.win.handlers.rename_task_category),
             ("btn_hapus_kategori", "Hapus", self.win.handlers.delete_task_category),
+            ("btn_ubah_icon_kategori", "Ubah Ikon", self.win.handlers.change_task_category_icon),
         ])
 
         # Tombol untuk memindahkan kategori

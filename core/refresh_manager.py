@@ -217,11 +217,14 @@ class RefreshManager:
 
         item_to_reselect = None
         for cat_data in categories:
-            display_text = ""
+            # Struktur baru adalah dictionary
             if isinstance(cat_data, dict):
-                display_text = f"{cat_data.get('icon', '')} {cat_data.get('name', '')}"
+                icon = cat_data.get('icon', '📂') # Default icon jika tidak ada
+                name = cat_data.get('name', 'Kategori tanpa nama')
+                display_text = f"{icon} {name}"
+            # Menjaga kompatibilitas dengan format lama (string)
             elif isinstance(cat_data, str):
-                display_text = f"?? {cat_data}"
+                display_text = f"📂 {cat_data}"
             else:
                 continue
 

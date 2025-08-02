@@ -214,7 +214,12 @@ class DataManager:
         tasks_data = self.load_tasks_data()
         # Cek duplikasi nama
         if not any(cat['name'] == name for cat in tasks_data.get("categories", [])):
-            tasks_data.setdefault("categories", []).append({"name": name, "tasks": []})
+            new_category = {
+                "name": name, 
+                "icon": config.DEFAULT_CATEGORY_ICON, 
+                "tasks": []
+            }
+            tasks_data.setdefault("categories", []).append(new_category)
             self.save_tasks_data(tasks_data)
 
     def rename_task_category(self, old_name, new_name):
@@ -227,6 +232,16 @@ class DataManager:
         for category in categories:
             if category['name'] == old_name:
                 category['name'] = new_name
+                self.save_tasks_data(tasks_data)
+                break
+    
+    def update_task_category_icon(self, category_name, new_icon):
+        """Memperbarui ikon untuk kategori task tertentu."""
+        tasks_data = self.load_tasks_data()
+        categories = tasks_data.get("categories", [])
+        for category in categories:
+            if category['name'] == category_name:
+                category['icon'] = new_icon
                 self.save_tasks_data(tasks_data)
                 break
 
@@ -245,7 +260,7 @@ class DataManager:
         tasks_data = self.load_tasks_data()
         categories = tasks_data.get("categories", [])
         for category in categories:
-            if category['name'] == category_name:
+            if category.get('name') == category_name:
                 return category.get("tasks", [])
         return []
 
@@ -259,9 +274,9 @@ class DataManager:
         for category in tasks_data.get("categories", []):
             for task in category.get("tasks", []):
                 task_copy = task.copy()
-                task_copy['name'] = f"[{category['name']}] {task['name']}"
-                task_copy['original_name'] = task['name']
-                task_copy['category'] = category['name']
+                task_copy['name'] = f"[{category.get('name')}] {task.get('name')}"
+                task_copy['original_name'] = task.get('name')
+                task_copy['category'] = category.get('name')
                 all_tasks.append(task_copy)
 
         # Logika pengurutan
@@ -269,9 +284,9 @@ class DataManager:
         if sort_by == 'date':
             all_tasks.sort(key=_get_sort_key_for_date, reverse=reverse_order)
         elif sort_by == 'count':
-            all_tasks.sort(key=lambda x: x['count'], reverse=reverse_order)
+            all_tasks.sort(key=lambda x: x.get('count', 0), reverse=reverse_order)
         else: # default ke 'name'
-            all_tasks.sort(key=lambda x: x['name'].lower(), reverse=reverse_order)
+            all_tasks.sort(key=lambda x: x.get('name', '').lower(), reverse=reverse_order)
 
         return all_tasks
 
@@ -279,17 +294,14 @@ class DataManager:
         """Menyimpan data sebuah task ke dalam kategori di file JSON."""
         tasks_data = self.load_tasks_data()
         for category in tasks_data.get("categories", []):
-            if category['name'] == category_name:
-                # Cek jika task sudah ada untuk diupdate, atau tambahkan sebagai task baru
+            if category.get('name') == category_name:
                 task_found = False
                 for i, task in enumerate(category.get("tasks", [])):
-                    if task['name'] == task_name:
-                        # Update data task yang ada
+                    if task.get('name') == task_name:
                         category["tasks"][i] = data
                         task_found = True
                         break
                 if not task_found:
-                    # Tambah task baru jika tidak ditemukan
                     category.setdefault("tasks", []).append(data)
                 self.save_tasks_data(tasks_data)
                 return
@@ -298,7 +310,7 @@ class DataManager:
         """Menghapus sebuah task dari kategori di file JSON."""
         tasks_data = self.load_tasks_data()
         for category in tasks_data.get("categories", []):
-            if category['name'] == category_name:
-                category["tasks"] = [task for task in category.get("tasks", []) if task['name'] != task_name]
+            if category.get('name') == category_name:
+                category["tasks"] = [task for task in category.get("tasks", []) if task.get('name') != task_name]
                 self.save_tasks_data(tasks_data)
                 return

@@ -504,6 +504,7 @@ class EventHandlers:
         self.win.btn_hapus_kategori.setEnabled(category_selected and not is_all_tasks_category)
         self.win.btn_kategori_naik.setEnabled(category_selected and not is_all_tasks_category and self.win.task_category_list.currentRow() > 1) # >1 karena index 0 adalah "Semua Task"
         self.win.btn_kategori_turun.setEnabled(category_selected and not is_all_tasks_category and self.win.task_category_list.currentRow() < self.win.task_category_list.count() - 1)
+        self.win.btn_ubah_icon_kategori.setEnabled(category_selected and not is_all_tasks_category)
         
         # --- Logika Tombol Task ---
         self.win.btn_tambah_task.setEnabled(category_selected and not is_all_tasks_category)
@@ -554,13 +555,16 @@ class EventHandlers:
             self.win.current_task_category = None
         else:
             text = current.text()
-            if text.startswith("📂 "):
-                category_name = text.split(" ", 1)[1]
+            if text == "Semua Task":
+                self.win.current_task_category = "Semua Task"
             else:
-                category_name = text # Untuk "Semua Task"
-            self.win.current_task_category = category_name
+                # Perbaikan: Ekstrak nama dengan aman
+                parts = text.split(" ", 1)
+                self.win.current_task_category = parts[1] if len(parts) > 1 else parts[0]
+                
         self.win.refresh_manager.refresh_task_list()
         self.update_button_states()
+
 
     def create_task_category(self):
         """Membuat kategori task baru."""
@@ -574,25 +578,55 @@ class EventHandlers:
         item = self.win.task_category_list.currentItem()
         if not item or item.text() == "Semua Task": return
 
-        old_name = item.text().split(" ", 1)[1]
+        text = item.text()
+        parts = text.split(" ", 1)
+        old_name = parts[1] if len(parts) > 1 else parts[0]
+        
         new_name, ok = QInputDialog.getText(self.win, "Ubah Nama Kategori", "Nama Baru:", text=old_name)
         if ok and new_name and new_name != old_name:
             self.data_manager.rename_task_category(old_name, new_name)
             self.win.refresh_manager.refresh_task_category_list()
             # Pilih item yang baru diubah namanya
             for i in range(self.win.task_category_list.count()):
-                new_text = self.win.task_category_list.item(i).text()
-                if new_text.endswith(f" {new_name}"):
-                    self.win.task_category_list.setCurrentRow(i)
+                list_item = self.win.task_category_list.item(i)
+                new_text = list_item.text()
+                new_parts = new_text.split(" ", 1)
+                current_name = new_parts[1] if len(new_parts) > 1 else new_parts[0]
+                if current_name == new_name:
+                    self.win.task_category_list.setCurrentItem(list_item)
                     break
             self.win.refresh_manager.refresh_task_list()
+            
+    def change_task_category_icon(self):
+        """Mengubah ikon untuk kategori yang dipilih."""
+        item = self.win.task_category_list.currentItem()
+        if not item or item.text() == "Semua Task": return
+
+        text = item.text()
+        parts = text.split(" ", 1)
+        category_name = parts[1] if len(parts) > 1 else parts[0]
+
+        icon, ok = QInputDialog.getItem(self.win, "Pilih Ikon Kategori", "Pilih ikon:", config.AVAILABLE_ICONS, 0, False)
+        
+        if ok and icon:
+            self.data_manager.update_task_category_icon(category_name, icon)
+            self.win.refresh_manager.refresh_task_category_list()
+            # Pilih kembali item yang sama
+            for i in range(self.win.task_category_list.count()):
+                list_item = self.win.task_category_list.item(i)
+                if list_item.text() == f"{icon} {category_name}":
+                    self.win.task_category_list.setCurrentItem(list_item)
+                    break
 
 
     def delete_task_category(self):
         """Menghapus kategori task yang dipilih."""
         item = self.win.task_category_list.currentItem()
         if not item or item.text() == "Semua Task": return
-        name = item.text().split(" ", 1)[1]
+        
+        text = item.text()
+        parts = text.split(" ", 1)
+        name = parts[1] if len(parts) > 1 else parts[0]
         
         reply = QMessageBox.question(self.win, "Konfirmasi", f"Yakin ingin menghapus kategori '{name}' dan semua isinya?")
         if reply == QMessageBox.StandardButton.Yes:
