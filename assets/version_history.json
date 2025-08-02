@@ -4,8 +4,11 @@
       "version": "Alpha v1.1",
       "date": "02-08-2025",
       "changes": [
+        "<b>Fitur:</b> Kategori dan Task sekarang dapat diurutkan (dipindahkan ke atas/bawah).",
+        "<b>Fitur:</b> Menambahkan fungsionalitas checklist pada setiap Task.",
         "<b>Fitur:</b> Menambahkan dialog 'Riwayat Versi' untuk melacak perubahan.",
         "<b>Fitur:</b> Menambahkan lebih dari 1600 ikon baru yang dikelompokkan berdasarkan kategori.",
+        "<b>Perbaikan:</b> Struktur data task diubah dari dictionary ke list untuk mendukung pengurutan.",
         "<b>Perbaikan:</b> Memperbarui dialog 'Tentang Aplikasi' dengan informasi terbaru.",
         "<b>Perbaikan:</b> Pebaikan Bug."
       ]
