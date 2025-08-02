@@ -42,7 +42,8 @@ class DataManager:
         """Memastikan file task JSON ada. Jika tidak, buat struktur default."""
         if not os.path.exists(self.task_data_file):
             self.ensure_directory_exists(os.path.dirname(self.task_data_file))
-            self.save_tasks_data({"categories": {}})
+            # Menggunakan list untuk 'categories' agar urutan terjaga
+            self.save_tasks_data({"categories": []})
 
     # --- Metode untuk Topics dan Subjects (Konten Utama) ---
 
@@ -93,7 +94,7 @@ class DataManager:
         except (FileNotFoundError, json.JSONDecodeError):
             if file_path != self.task_data_file:
                 return {"content": [], "metadata": {}}
-            return {"categories": {}}
+            return {"categories": []} # Mengembalikan list kosong
 
     def save_content(self, file_path, data):
         """Menyimpan data ke file JSON generik."""
@@ -205,83 +206,64 @@ class DataManager:
     def get_task_categories(self):
         """Mendapatkan daftar semua kategori task dari file."""
         tasks_data = self.load_tasks_data()
-        categories = tasks_data.get("categories", {})
-        
-        categories_data = []
-        for name in sorted(categories.keys()):
-            categories_data.append({'name': name, 'icon': '📂'})
-        return categories_data
+        # Data sekarang adalah list, bukan dictionary
+        return tasks_data.get("categories", [])
 
     def create_task_category(self, name):
         """Membuat kategori task baru dalam file JSON."""
         tasks_data = self.load_tasks_data()
-        if name not in tasks_data["categories"]:
-            tasks_data["categories"][name] = {"tasks": {}}
+        # Cek duplikasi nama
+        if not any(cat['name'] == name for cat in tasks_data.get("categories", [])):
+            tasks_data.setdefault("categories", []).append({"name": name, "tasks": []})
             self.save_tasks_data(tasks_data)
 
     def rename_task_category(self, old_name, new_name):
         """Mengubah nama kategori task dalam file JSON."""
         tasks_data = self.load_tasks_data()
-        if old_name in tasks_data["categories"] and new_name not in tasks_data["categories"]:
-            tasks_data["categories"][new_name] = tasks_data["categories"].pop(old_name)
-            self.save_tasks_data(tasks_data)
+        categories = tasks_data.get("categories", [])
+        # Cek duplikasi nama baru
+        if any(cat['name'] == new_name for cat in categories):
+            return
+        for category in categories:
+            if category['name'] == old_name:
+                category['name'] = new_name
+                self.save_tasks_data(tasks_data)
+                break
 
     def delete_task_category(self, name):
         """Menghapus kategori task dari file JSON."""
         tasks_data = self.load_tasks_data()
-        if name in tasks_data["categories"]:
-            del tasks_data["categories"][name]
-            self.save_tasks_data(tasks_data)
-
+        categories = tasks_data.get("categories", [])
+        tasks_data["categories"] = [cat for cat in categories if cat['name'] != name]
+        self.save_tasks_data(tasks_data)
+        
     def get_tasks(self, category_name, sort_by='date', sort_order='asc'):
         """
-        Mendapatkan semua task dari sebuah kategori dengan opsi pengurutan.
-        sort_by: 'date', 'name', 'count'
-        sort_order: 'asc' (ascending), 'desc' (descending)
+        Mendapatkan semua task dari sebuah kategori.
+        Pengurutan tidak lagi dilakukan di sini, tapi mengikuti urutan di JSON.
         """
         tasks_data = self.load_tasks_data()
-        category = tasks_data.get("categories", {}).get(category_name)
-        
-        if not category:
-            return []
-            
-        tasks_list = []
-        for task_name, task_details in category.get("tasks", {}).items():
-            tasks_list.append({
-                'name': task_name,
-                'count': task_details.get('count', 0),
-                'date': task_details.get('date', '')
-            })
+        categories = tasks_data.get("categories", [])
+        for category in categories:
+            if category['name'] == category_name:
+                return category.get("tasks", [])
+        return []
 
-        # Logika pengurutan
-        reverse_order = (sort_order == 'desc')
-        if sort_by == 'date':
-            tasks_list.sort(key=_get_sort_key_for_date, reverse=reverse_order)
-        elif sort_by == 'count':
-            tasks_list.sort(key=lambda x: x['count'], reverse=reverse_order)
-        else: # default ke 'name'
-            tasks_list.sort(key=lambda x: x['name'].lower(), reverse=reverse_order)
-            
-        return tasks_list
-    
     def get_all_tasks(self, sort_by='date', sort_order='asc'):
         """
-        Mendapatkan semua task dari semua kategori dengan opsi pengurutan.
-        sort_by: 'date', 'name', 'count'
-        sort_order: 'asc' (ascending), 'desc' (descending)
+        Mendapatkan semua task dari semua kategori.
+        Pengurutan sekarang berdasarkan tanggal untuk semua task gabungan.
         """
         tasks_data = self.load_tasks_data()
         all_tasks = []
-        for category_name, category_details in tasks_data.get("categories", {}).items():
-            for task_name, task_details in category_details.get("tasks", {}).items():
-                 all_tasks.append({
-                    'name': f"[{category_name}] {task_name}",
-                    'count': task_details.get('count', 0),
-                    'date': task_details.get('date', ''),
-                    'original_name': task_name,
-                    'category': category_name
-                })
-        
+        for category in tasks_data.get("categories", []):
+            for task in category.get("tasks", []):
+                task_copy = task.copy()
+                task_copy['name'] = f"[{category['name']}] {task['name']}"
+                task_copy['original_name'] = task['name']
+                task_copy['category'] = category['name']
+                all_tasks.append(task_copy)
+
         # Logika pengurutan
         reverse_order = (sort_order == 'desc')
         if sort_by == 'date':
@@ -290,19 +272,33 @@ class DataManager:
             all_tasks.sort(key=lambda x: x['count'], reverse=reverse_order)
         else: # default ke 'name'
             all_tasks.sort(key=lambda x: x['name'].lower(), reverse=reverse_order)
-            
+
         return all_tasks
 
     def save_task(self, category_name, task_name, data):
         """Menyimpan data sebuah task ke dalam kategori di file JSON."""
         tasks_data = self.load_tasks_data()
-        if category_name in tasks_data["categories"]:
-            tasks_data["categories"][category_name]["tasks"][task_name] = data
-            self.save_tasks_data(tasks_data)
+        for category in tasks_data.get("categories", []):
+            if category['name'] == category_name:
+                # Cek jika task sudah ada untuk diupdate, atau tambahkan sebagai task baru
+                task_found = False
+                for i, task in enumerate(category.get("tasks", [])):
+                    if task['name'] == task_name:
+                        # Update data task yang ada
+                        category["tasks"][i] = data
+                        task_found = True
+                        break
+                if not task_found:
+                    # Tambah task baru jika tidak ditemukan
+                    category.setdefault("tasks", []).append(data)
+                self.save_tasks_data(tasks_data)
+                return
 
     def delete_task(self, category_name, task_name):
         """Menghapus sebuah task dari kategori di file JSON."""
         tasks_data = self.load_tasks_data()
-        if category_name in tasks_data["categories"] and task_name in tasks_data["categories"][category_name]["tasks"]:
-            del tasks_data["categories"][category_name]["tasks"][task_name]
-            self.save_tasks_data(tasks_data)
+        for category in tasks_data.get("categories", []):
+            if category['name'] == category_name:
+                category["tasks"] = [task for task in category.get("tasks", []) if task['name'] != task_name]
+                self.save_tasks_data(tasks_data)
+                return

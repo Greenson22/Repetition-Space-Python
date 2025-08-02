@@ -56,7 +56,7 @@ class RefreshManager:
         self.win.topic_list.clear()
         topics = self.data_manager.get_topics()
         for topic_data in topics:
-            item = QListWidgetItem(f"{topic_data['icon']} {topic_data['name']}")
+            item = QListWidgetItem(f"{topic_data.get('icon', '📁')} {topic_data.get('name', '')}")
             self.win.topic_list.addItem(item)
 
     def refresh_subject_list(self):
@@ -197,8 +197,11 @@ class RefreshManager:
         self.refresh_content_tree()
         self.refresh_subject_list()
 
+# file: test/core/refresh_manager.py
+
+# ... (kode lain di atasnya biarkan saja) ...
     def refresh_task_category_list(self):
-        """Merefresh daftar kategori task."""
+        """Merefresh daftar kategori task dengan penanganan format data lama/baru."""
         current_item_text = self.win.task_category_list.currentItem().text() if self.win.task_category_list.currentItem() else None
         self.win.task_category_list.blockSignals(True)
         self.win.task_category_list.clear()
@@ -208,7 +211,20 @@ class RefreshManager:
         
         item_to_reselect = None
         for cat_data in categories:
-            display_text = f"{cat_data['icon']} {cat_data['name']}"
+            display_text = ""
+            # --- PERBAIKAN DIMULAI DI SINI ---
+            # Cek apakah cat_data adalah dictionary (format baru) atau string (format lama)
+            if isinstance(cat_data, dict):
+                # Format baru: {'name': 'NamaKategori', 'icon': '📁', ...}
+                display_text = f"{cat_data.get('icon', '📂')} {cat_data.get('name', '')}"
+            elif isinstance(cat_data, str):
+                # Format lama: "NamaKategori"
+                display_text = f"📂 {cat_data}"
+            else:
+                # Lewati jika format tidak dikenali
+                continue
+            # --- PERBAIKAN SELESAI ---
+
             item = QListWidgetItem(display_text)
             self.win.task_category_list.addItem(item)
             if display_text == current_item_text:
@@ -223,28 +239,44 @@ class RefreshManager:
         if self.win.task_category_list.currentItem():
              self.win.handlers.task_category_selected(self.win.task_category_list.currentItem(), None)
 
+# ... (sisa kode di bawahnya biarkan saja) ...
     def refresh_task_list(self):
         """Merefresh daftar task berdasarkan kategori yang dipilih."""
+        # Blokir sinyal untuk mencegah trigger event saat kita memodifikasi item
+        self.win.task_tree.blockSignals(True)
         self.win.task_tree.clear()
+
         if not self.win.current_task_category:
             self.win.handlers.update_button_states()
+            self.win.task_tree.blockSignals(False)
             return
-            
-        tasks = self.data_manager.get_all_tasks() if self.win.current_task_category == "Semua Task" else self.data_manager.get_tasks(self.win.current_task_category)
-            
-        for task_data in tasks:
+
+        tasks = (self.data_manager.get_all_tasks() if self.win.current_task_category == "Semua Task" 
+                 else self.data_manager.get_tasks(self.win.current_task_category))
+
+        for index, task_data in enumerate(tasks):
             item = QTreeWidgetItem(self.win.task_tree)
-            item.setText(0, task_data['name'])
-            item.setText(1, str(task_data['count']))
+            
+            # Mengatur item agar bisa di-checklist
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            # Mengatur status checklist berdasarkan data
+            check_state = Qt.CheckState.Checked if task_data.get('checked', False) else Qt.CheckState.Unchecked
+            item.setCheckState(0, check_state)
+
+            item.setText(0, task_data.get('name', ''))
+            item.setText(1, str(task_data.get('count', 0)))
             item.setText(2, task_data.get('date', ''))
             
             user_data = {
                 "original_name": task_data.get("original_name", task_data.get("name")),
-                "category": task_data.get("category", self.win.current_task_category)
+                "category": task_data.get("category", self.win.current_task_category),
+                "index": index # Simpan index asli dari list
             }
             item.setData(0, Qt.ItemDataRole.UserRole, user_data)
             
         self.win.handlers.update_button_states()
+        # Aktifkan kembali sinyal setelah selesai
+        self.win.task_tree.blockSignals(False)
         
     def reselect_task(self, task_name_to_select, category_name_to_select):
         """Memilih kembali item task setelah operasi."""

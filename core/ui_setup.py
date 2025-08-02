@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QTreeWidget, QPushButton, QSplitter, QFrame, QHeaderView, QLineEdit
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QSize, Qt
 
 class UIBuilder:
     """Kelas untuk membangun komponen antarmuka pengguna untuk ContentManager."""
@@ -51,6 +51,8 @@ class UIBuilder:
         self.win.task_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.win.task_tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.win.task_tree.currentItemChanged.connect(self.win.handlers.update_button_states)
+        # Menghubungkan event itemChanged untuk checklist
+        self.win.task_tree.itemChanged.connect(self.win.handlers.task_item_changed)
         
         task_buttons = self._create_button_layout([
             ("btn_tambah_task", "Tambah Task", self.win.handlers.add_task),
@@ -58,9 +60,16 @@ class UIBuilder:
             ("btn_hapus_task", "Hapus Task", self.win.handlers.delete_task),
         ])
 
+        # Tombol untuk memindahkan task
+        task_move_buttons = self._create_button_layout([
+            ("btn_task_naik", "Naik", self.win.handlers.move_task_up),
+            ("btn_task_turun", "Turun", self.win.handlers.move_task_down),
+        ])
+
         main_layout.addWidget(self.win.task_title_label)
         main_layout.addWidget(self.win.task_tree)
         main_layout.addLayout(task_buttons)
+        main_layout.addLayout(task_move_buttons)
 
         # --- Pemisah ---
         main_layout.addWidget(self._create_separator())
@@ -76,9 +85,16 @@ class UIBuilder:
             ("btn_hapus_kategori", "Hapus", self.win.handlers.delete_task_category),
         ])
 
+        # Tombol untuk memindahkan kategori
+        category_move_buttons = self._create_button_layout([
+             ("btn_kategori_naik", "Naik", self.win.handlers.move_category_up),
+             ("btn_kategori_turun", "Turun", self.win.handlers.move_category_down),
+        ])
+
         main_layout.addWidget(self.win.task_category_title_label)
         main_layout.addWidget(self.win.task_category_list)
         main_layout.addLayout(category_buttons)
+        main_layout.addLayout(category_move_buttons)
 
         return main_panel
 

@@ -1,14 +1,14 @@
 # file: core/ui_components/task_edit_dialog.py
 
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox, QDateEdit, QSpinBox
+    QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox, QDateEdit, QSpinBox, QCheckBox
 )
 from PyQt6.QtCore import QDate, Qt
 from datetime import datetime
 
 class TaskEditDialog(QDialog):
     """
-    Jendela dialog untuk mengedit nama, hitungan, dan tanggal sebuah task.
+    Jendela dialog untuk mengedit nama, hitungan, tanggal, dan status checklist sebuah task.
     """
     def __init__(self, task_data, parent=None):
         super().__init__(parent)
@@ -47,6 +47,11 @@ class TaskEditDialog(QDialog):
         self.layout.addWidget(self.date_label)
         self.layout.addWidget(self.date_input)
 
+        # Checkbox untuk status Selesai
+        self.checked_checkbox = QCheckBox("Tandai sebagai selesai (checklist)")
+        self.checked_checkbox.setChecked(task_data.get("checked", False))
+        self.layout.addWidget(self.checked_checkbox)
+
         # Tombol OK dan Batal
         self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.button_box.accepted.connect(self.accept)
@@ -58,5 +63,6 @@ class TaskEditDialog(QDialog):
         return {
             "name": self.name_input.text(),
             "count": self.count_input.value(),
-            "date": self.date_input.date().toString("yyyy-MM-dd")
+            "date": self.date_input.date().toString("yyyy-MM-dd"),
+            "checked": self.checked_checkbox.isChecked() # Ambil status checkbox
         }

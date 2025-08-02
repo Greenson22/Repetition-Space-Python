@@ -497,33 +497,20 @@ class EventHandlers:
         category_selected = self.win.task_category_list.currentItem() is not None
         task_selected = self.win.task_tree.currentItem() is not None
         is_all_tasks_category = category_selected and self.win.task_category_list.currentItem().text() == "Semua Task"
-
-        self.win.btn_buat_kategori.setEnabled(True) # Selalu bisa buat kategori baru
-        self.win.btn_ubah_kategori.setEnabled(category_selected and not is_all_tasks_category)
-        self.win.btn_hapus_kategori.setEnabled(category_selected and not is_all_tasks_category)
-
-        self.win.btn_tambah_task.setEnabled(category_selected and not is_all_tasks_category)
-        self.win.btn_edit_task.setEnabled(task_selected) # Bisa edit dari "Semua Task"
-        self.win.btn_hapus_task.setEnabled(task_selected) # Bisa hapus dari "Semua Task"
         
-        # --- BARU: Logika untuk tombol-tombol Task ---
-        category_selected = self.win.task_category_list.currentItem() is not None
-        task_selected = self.win.task_tree.currentItem() is not None
-        is_all_tasks_category = category_selected and self.win.task_category_list.currentItem().text() == "Semua Task"
-
+        # --- Logika Tombol Kategori ---
         self.win.btn_buat_kategori.setEnabled(True)
         self.win.btn_ubah_kategori.setEnabled(category_selected and not is_all_tasks_category)
         self.win.btn_hapus_kategori.setEnabled(category_selected and not is_all_tasks_category)
-
-        self.win.btn_tambah_task.setEnabled(category_selected and not is_all_tasks_category)
+        self.win.btn_kategori_naik.setEnabled(category_selected and not is_all_tasks_category and self.win.task_category_list.currentRow() > 1) # >1 karena index 0 adalah "Semua Task"
+        self.win.btn_kategori_turun.setEnabled(category_selected and not is_all_tasks_category and self.win.task_category_list.currentRow() < self.win.task_category_list.count() - 1)
         
-        # Tombol Edit sekarang satu-satunya cara untuk mengubah task
+        # --- Logika Tombol Task ---
+        self.win.btn_tambah_task.setEnabled(category_selected and not is_all_tasks_category)
         self.win.btn_edit_task.setEnabled(task_selected)
         self.win.btn_hapus_task.setEnabled(task_selected)
-
-        # Tombol tambah/kurang hitung sudah tidak ada lagi
-        # self.win.btn_tambah_hitung.setEnabled(task_selected) 
-        # self.win.btn_kurang_hitung.setEnabled(task_selected)
+        self.win.btn_task_naik.setEnabled(task_selected and not is_all_tasks_category and self.win.task_tree.currentIndex().row() > 0)
+        self.win.btn_task_turun.setEnabled(task_selected and not is_all_tasks_category and self.win.task_tree.currentIndex().row() < self.win.task_tree.topLevelItemCount() - 1)
 
     # --- Bagian utilitas internal ---
     def get_item_dict(self, item_data):
@@ -594,10 +581,12 @@ class EventHandlers:
             self.win.refresh_manager.refresh_task_category_list()
             # Pilih item yang baru diubah namanya
             for i in range(self.win.task_category_list.count()):
-                if self.win.task_category_list.item(i).text().endswith(new_name):
+                new_text = self.win.task_category_list.item(i).text()
+                if new_text.endswith(f" {new_name}"):
                     self.win.task_category_list.setCurrentRow(i)
                     break
             self.win.refresh_manager.refresh_task_list()
+
 
     def delete_task_category(self):
         """Menghapus kategori task yang dipilih."""
@@ -618,8 +607,12 @@ class EventHandlers:
         
         task_name, ok = QInputDialog.getText(self.win, "Tambah Task Baru", "Nama Task:")
         if ok and task_name:
-            date_str = datetime.now().strftime("%Y-%m-%d")
-            new_task = {'count': 0, 'date': date_str}
+            new_task = {
+                'name': task_name, 
+                'count': 0, 
+                'date': datetime.now().strftime("%Y-%m-%d"),
+                'checked': False  # Default status checklist
+            }
             self.data_manager.save_task(self.win.current_task_category, task_name, new_task)
             self.win.refresh_manager.refresh_task_list()
 
@@ -628,44 +621,37 @@ class EventHandlers:
         item = self.win.task_tree.currentItem()
         if not item: return
 
-        # Dapatkan data asli dari user role
         task_info = item.data(0, Qt.ItemDataRole.UserRole)
         if not task_info: return
         
         old_task_name = task_info.get("original_name")
         category_name = task_info.get("category")
 
-        # Muat data task yang ada untuk mengisi dialog
         tasks_data = self.data_manager.load_tasks_data()
-        original_task_data = tasks_data.get("categories", {}).get(category_name, {}).get("tasks", {}).get(old_task_name)
-
+        original_task_data = None
+        for cat in tasks_data.get("categories", []):
+            if cat['name'] == category_name:
+                for task in cat.get("tasks", []):
+                    if task['name'] == old_task_name:
+                        original_task_data = task
+                        break
+                break
+        
         if not original_task_data:
             QMessageBox.warning(self.win, "Error", "Data task tidak ditemukan.")
             return
-
-        # Siapkan data untuk dialog, termasuk nama asli
-        dialog_data = original_task_data.copy()
-        dialog_data['name'] = old_task_name
         
-        dialog = TaskEditDialog(dialog_data, self.win)
+        dialog = TaskEditDialog(original_task_data, self.win)
         
         if dialog.exec():
             updated_data = dialog.get_data()
             new_task_name = updated_data.get("name")
             
-            # Buat data task baru tanpa nama
-            new_task_details = {
-                "count": updated_data.get("count"),
-                "date": updated_data.get("date")
-            }
-
-            # Jika nama tidak berubah, cukup simpan data baru
-            if new_task_name == old_task_name:
-                self.data_manager.save_task(category_name, old_task_name, new_task_details)
-            else:
-                # Jika nama berubah, hapus yang lama dan buat yang baru
+            # Jika nama berubah, kita harus menghapus yang lama dan menambahkan yang baru
+            if new_task_name != old_task_name:
                 self.data_manager.delete_task(category_name, old_task_name)
-                self.data_manager.save_task(category_name, new_task_name, new_task_details)
+            
+            self.data_manager.save_task(category_name, new_task_name, updated_data)
             
             self.win.refresh_manager.refresh_task_list()
             # Coba pilih kembali task yang baru di-edit
@@ -685,27 +671,87 @@ class EventHandlers:
         if reply == QMessageBox.StandardButton.Yes:
             self.data_manager.delete_task(category_name, task_name)
             self.win.refresh_manager.refresh_task_list()
+
+    # --- BARU: Handler untuk memindahkan item ---
+    def move_category_up(self):
+        self._move_category(-1)
+
+    def move_category_down(self):
+        self._move_category(1)
+
+    def _move_category(self, direction):
+        current_row = self.win.task_category_list.currentRow()
+        # Index 0 adalah "Semua Task", jadi tidak bisa dipindahkan
+        if current_row <= 0: return
+
+        tasks_data = self.data_manager.load_tasks_data()
+        categories = tasks_data.get("categories", [])
         
-    def _adjust_task_count(self, amount):
-        """Logika internal untuk mengubah hitungan task."""
+        # Penyesuaian index karena ada "Semua Task" di UI
+        cat_index = current_row - 1
+        
+        if 0 <= cat_index < len(categories):
+            new_index = cat_index + direction
+            if 0 <= new_index < len(categories):
+                # Tukar posisi
+                categories[cat_index], categories[new_index] = categories[new_index], categories[cat_index]
+                self.data_manager.save_tasks_data(tasks_data)
+                
+                # Refresh list dan pilih kembali item yang dipindahkan
+                self.win.refresh_manager.refresh_task_category_list()
+                self.win.task_category_list.setCurrentRow(new_index + 1)
+
+    def move_task_up(self):
+        self._move_task(-1)
+
+    def move_task_down(self):
+        self._move_task(1)
+
+    def _move_task(self, direction):
         item = self.win.task_tree.currentItem()
-        if not item: return
-            
+        if not item or self.win.current_task_category == "Semua Task": return
+
         task_info = item.data(0, Qt.ItemDataRole.UserRole)
-        task_name = task_info.get("original_name")
         category_name = task_info.get("category")
+        current_index = task_info.get("index")
         
         tasks_data = self.data_manager.load_tasks_data()
-        task_data = tasks_data.get("categories", {}).get(category_name, {}).get("tasks", {}).get(task_name)
+        categories = tasks_data.get("categories", [])
 
-        if not task_data: return
+        for category in categories:
+            if category['name'] == category_name:
+                tasks = category.get("tasks", [])
+                if 0 <= current_index < len(tasks):
+                    new_index = current_index + direction
+                    if 0 <= new_index < len(tasks):
+                        # Tukar posisi
+                        tasks[current_index], tasks[new_index] = tasks[new_index], tasks[current_index]
+                        self.data_manager.save_tasks_data(tasks_data)
+                        
+                        # Refresh dan pilih kembali
+                        self.win.refresh_manager.refresh_task_list()
+                        # Cari item yang baru untuk diseleksi
+                        new_item_to_select = self.win.task_tree.topLevelItem(new_index)
+                        if new_item_to_select:
+                            self.win.task_tree.setCurrentItem(new_item_to_select)
+                        break
 
-        current_count = task_data.get('count', 0)
-        task_data['count'] = max(0, current_count + amount) # Pastikan tidak negatif
-        
-        # Simpan kembali seluruh data tasks
-        self.data_manager.save_tasks_data(tasks_data)
-        
-        # Refresh dan seleksi ulang
-        self.win.refresh_manager.refresh_task_list()
-        self.win.refresh_manager.reselect_task(task_name, category_name)
+    # --- BARU: Handler untuk checklist ---
+    def task_item_changed(self, item, column):
+        """Handler saat status checklist sebuah task diubah."""
+        if column == 0: # Hanya bereaksi pada perubahan di kolom pertama (tempat checkbox)
+            task_info = item.data(0, Qt.ItemDataRole.UserRole)
+            if not task_info: return
+
+            category_name = task_info.get("category")
+            task_name = task_info.get("original_name")
+            is_checked = item.checkState(0) == Qt.CheckState.Checked
+
+            tasks_data = self.data_manager.load_tasks_data()
+            for category in tasks_data.get("categories", []):
+                if category['name'] == category_name:
+                    for task in category.get("tasks", []):
+                        if task['name'] == task_name:
+                            task['checked'] = is_checked
+                            self.data_manager.save_tasks_data(tasks_data)
+                            return
