@@ -16,7 +16,7 @@ class ContentManager(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        self.setWindowTitle("Content Manager")
+        self.setWindowTitle("Repetition App")
         self.setGeometry(100, 100, 1200, 650)
         self.setWindowIcon(QIcon('images/icons/bird_2.png'))
         
@@ -29,7 +29,7 @@ class ContentManager(QMainWindow):
         self.current_task_category = None 
         self.sort_column = 1
         self.sort_order = Qt.SortOrder.AscendingOrder
-        self.settings = QSettings("MyCompany", "ContentManager")
+        self.settings = QSettings("MyCompany", "RepetitionApp") # Nama pengaturan diubah
         self.date_filter = "all"
         self.search_query = ""
         self.scale_config = {} 

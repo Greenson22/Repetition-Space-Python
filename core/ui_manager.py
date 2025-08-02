@@ -1,9 +1,10 @@
 # file: test/core/ui_manager.py
 
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QMessageBox, QPushButton
 from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import QSize
+from PyQt6.QtCore import Qt
 import config
 
 class UIManager:
@@ -86,9 +87,9 @@ class UIManager:
         help_menu.addAction(about_action)
 
     def show_about_dialog(self):
-        """Menampilkan dialog 'About' dengan informasi aplikasi."""
+        """Menampilkan dialog 'About' dengan informasi aplikasi dan tombol riwayat versi."""
         about_text = """
-        <b>Content Manager v1.1</b>
+        <b>Repetition App Alpha v1.1</b>
         <p>Aplikasi ini dibuat oleh:</p>
         <p><b>Frendy Rikal Gerung S.Kom</b></p>
         <p>
@@ -101,7 +102,44 @@ class UIManager:
         </p>
         <p>Terima kasih telah menggunakan aplikasi ini!</p>
         """
-        QMessageBox.about(self.win, "Tentang Content Manager", about_text)
+        msg_box = QMessageBox(self.win)
+        msg_box.setWindowTitle("Tentang Repetition App")
+        msg_box.setTextFormat(Qt.TextFormat.RichText)
+        msg_box.setText(about_text)
+        
+        # Tambahkan tombol custom untuk riwayat versi
+        history_button = QPushButton("Riwayat Versi")
+        msg_box.addButton(history_button, QMessageBox.ButtonRole.ActionRole)
+        
+        # Tambahkan tombol OK standar
+        msg_box.addButton(QMessageBox.StandardButton.Ok)
+
+        # Hubungkan tombol riwayat versi ke fungsinya
+        history_button.clicked.connect(self.show_version_history_dialog)
+        
+        msg_box.exec()
+
+    def show_version_history_dialog(self):
+        """Menampilkan dialog dengan riwayat versi aplikasi."""
+        # Riwayat versi dipindahkan ke sini agar lebih mudah dikelola
+        version_history_text = """
+        <h3>Riwayat Versi</h3>
+        <p><b>Alpha v1.1 (02-08-2025)</b></p>
+        <ul>
+            <li><b>Fitur:</b> Menambahkan dialog 'Riwayat Versi' untuk melacak perubahan.</li>
+            <li><b>Perbaikan:</b> Memperbarui dialog 'Tentang Aplikasi' dengan informasi terbaru.</li>
+        </ul>
+        <p><b>Alpha v1.0 (22-06-2025)</b></p>
+        <ul>
+            <li><b>Fitur:</b> Rilis awal aplikasi dengan fungsionalitas manajemen tugas dan konten.</li>
+            <li><b>Fitur:</b> Tampilan panel ganda untuk topik/subjek dan tugas/kategori.</li>
+            <li><b>Fitur:</b> Fungsionalitas filter dan pencarian konten.</li>
+            <li><b>Fitur:</b> Pilihan tema (Light, Dark, Nordic Twilight).</li>
+            <li><b>Fitur:</b> Skala UI yang dapat disesuaikan.</li>
+        </ul>
+        """
+        QMessageBox.about(self.win, "Riwayat Versi", version_history_text)
+
 
     def set_date_filter(self, filter_type):
         """Mengatur filter tanggal dan merefresh tampilan konten."""
