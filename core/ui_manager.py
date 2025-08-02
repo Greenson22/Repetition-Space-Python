@@ -4,7 +4,7 @@ import os
 import shutil
 from PyQt6.QtWidgets import (QMessageBox, QPushButton, QFileDialog, QMenu,
                              QDialog, QVBoxLayout, QListWidget, QListWidgetItem,
-                             QHBoxLayout, QAbstractItemView)
+                             QHBoxLayout, QAbstractItemView, QTextBrowser, QDialogButtonBox)
 from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import QSize
@@ -236,17 +236,39 @@ class UIManager:
         msg_box.exec()
 
     def show_version_history_dialog(self):
-        """Menampilkan riwayat versi dari file JSON."""
+        """Menampilkan riwayat versi dari file JSON dalam dialog yang bisa di-scroll."""
         try:
             with open(resource_path('assets/version_history.json'), 'r', encoding='utf-8') as f:
                 data = json.load(f)
+            
             html_output = "<h3>Riwayat Versi</h3>"
             for entry in data['versions']:
                 html_output += f"<p><b>{entry['version']} ({entry['date']})</b></p><ul>"
                 for change in entry['changes']:
                     html_output += f"<li>{change}</li>"
                 html_output += "</ul>"
-            QMessageBox.about(self.win, "Riwayat Versi", html_output)
+
+            # Membuat dialog custom
+            dialog = QDialog(self.win)
+            dialog.setWindowTitle("Riwayat Versi")
+            dialog.setMinimumSize(400, 300) # Ukuran minimum agar tidak terlalu kecil
+
+            layout = QVBoxLayout(dialog)
+
+            # Menggunakan QTextBrowser untuk konten yang bisa di-scroll
+            text_browser = QTextBrowser()
+            text_browser.setHtml(html_output)
+            text_browser.setOpenExternalLinks(True) # Jika ada link di masa depan
+
+            layout.addWidget(text_browser)
+
+            # Menambahkan tombol OK
+            button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+            button_box.accepted.connect(dialog.accept)
+            layout.addWidget(button_box)
+
+            dialog.exec()
+
         except (FileNotFoundError, json.JSONDecodeError) as e:
             QMessageBox.critical(self.win, "Error", f"Gagal memuat riwayat versi: {e}")
 

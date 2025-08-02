@@ -1,5 +1,14 @@
 {
+  
   "versions": [
+    {
+      "version": "Alpha v1.3.1",
+      "date": "02-08-2025",
+      "changes": [
+        "<b>Fitur:</b> Riwayat Versi sudah bisa di scroll",
+        "<b>Perbaikan:</b> Fitur search yang bermasalah."
+      ]
+    },
     {
       "version": "Alpha v1.3",
       "date": "02-08-2025",
