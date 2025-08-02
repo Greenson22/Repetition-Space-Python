@@ -110,7 +110,6 @@ class RefreshManager:
             for index, data in enumerate(self.win.current_content.get("content", []))
         ]
         
-        # --- AWAL PERBAIKAN ---
         # Langkah 2: Terapkan filter pencarian jika ada query
         if self.win.search_query:
             query = self.win.search_query.lower()
@@ -134,7 +133,6 @@ class RefreshManager:
                             new_disc_data["points"] = matching_points
                             search_filtered_list.append({"data": new_disc_data, "original_index": item["original_index"]})
             discussions_to_process = search_filtered_list
-        # --- AKHIR PERBAIKAN ---
 
         # Langkah 3: Terapkan filter tanggal pada daftar yang sudah memiliki indeks asli
         if self.win.date_filter != "all":
@@ -183,11 +181,9 @@ class RefreshManager:
             original_index = item['original_index']
             discussion_data = item['data']
 
-            # --- PERUBAHAN: Tambahkan nomor di depan diskusi ---
             discussion_text = discussion_data.get("discussion", "Diskusi kosong")
             parent_item = QTreeWidgetItem(self.win.content_tree)
             parent_item.setText(0, f"{i + 1}. {discussion_text}")
-            # --- AKHIR PERUBAHAN ---
 
             # Simpan data dengan INDEKS ASLI yang benar
             item_data_for_crud = {"type": "discussion", "index": original_index}
@@ -204,10 +200,22 @@ class RefreshManager:
             if selected_item_data == item_data_for_crud:
                 item_to_reselect = parent_item
 
-            # Indeks point bersifat relatif terhadap induknya, jadi tidak terpengaruh filter diskusi
-            for j, point_data in enumerate(discussion_data.get("points", [])):
+            # --- AWAL PERBAIKAN ---
+            # Ambil daftar point asli dari data utama untuk perbandingan indeks
+            original_points = self.win.current_content["content"][original_index].get("points", [])
+
+            # Iterasi melalui point yang mungkin sudah difilter
+            for point_data in discussion_data.get("points", []):
+                # Cari indeks asli dari point_data di dalam daftar point asli
+                try:
+                    original_point_index = original_points.index(point_data)
+                except ValueError:
+                    # Jika point tidak ditemukan (seharusnya tidak terjadi), lewati saja
+                    continue
+
                 child_item = QTreeWidgetItem(parent_item)
-                item_data = {"type": "point", "parent_index": original_index, "index": j}
+                # Gunakan original_point_index untuk data CRUD
+                item_data = {"type": "point", "parent_index": original_index, "index": original_point_index}
                 child_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
                 child_item.setText(0, point_data.get("point_text", "Point kosong"))
                 child_item.setText(1, utils.format_date(point_data.get("date", ""), date_format))
@@ -215,6 +223,7 @@ class RefreshManager:
 
                 if selected_item_data == item_data:
                     item_to_reselect = child_item
+            # --- AKHIR PERBAIKAN ---
 
             if self.win.search_query or original_index in expanded_indices:
                 parent_item.setExpanded(True)
