@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from PyQt6.QtWidgets import QInputDialog, QMessageBox, QComboBox
 from PyQt6.QtCore import Qt
 import config
-from ui_components import DateDialog
+from core.ui_components.date_dialog import DateDialog
 
 class ContentHandlers:
     """Berisi handler untuk event terkait Content Tree (Diskusi dan Point)."""
