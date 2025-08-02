@@ -1,0 +1,19 @@
+{
+  "versions": [
+    {
+      "version": "Alpha v1.1",
+      "date": "02-08-2025",
+      "changes": [
+        "<b>Fitur:</b> Menambahkan dialog 'Riwayat Versi' untuk melacak perubahan.",
+        "<b>Perbaikan:</b> Memperbarui dialog 'Tentang Aplikasi' dengan informasi terbaru."
+      ]
+    },
+    {
+      "version": "Alpha v1.0",
+      "date": "01-08-2025",
+      "changes": [
+        "<b>Fitur:</b> Rilis awal aplikasi dengan fungsionalitas inti."
+      ]
+    }
+  ]
+}

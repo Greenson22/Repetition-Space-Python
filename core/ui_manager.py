@@ -6,6 +6,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt
 import config
+import json
 
 class UIManager:
     """Kelas untuk mengelola elemen UI seperti menu, tema, dan skala."""
@@ -120,26 +121,25 @@ class UIManager:
         msg_box.exec()
 
     def show_version_history_dialog(self):
-        """Menampilkan dialog dengan riwayat versi aplikasi."""
-        # Riwayat versi dipindahkan ke sini agar lebih mudah dikelola
-        version_history_text = """
-        <h3>Riwayat Versi</h3>
-        <p><b>Alpha v1.1 (02-08-2025)</b></p>
-        <ul>
-            <li><b>Fitur:</b> Menambahkan dialog 'Riwayat Versi' untuk melacak perubahan.</li>
-            <li><b>Perbaikan:</b> Memperbarui dialog 'Tentang Aplikasi' dengan informasi terbaru.</li>
-        </ul>
-        <p><b>Alpha v1.0 (22-06-2025)</b></p>
-        <ul>
-            <li><b>Fitur:</b> Rilis awal aplikasi dengan fungsionalitas manajemen tugas dan konten.</li>
-            <li><b>Fitur:</b> Tampilan panel ganda untuk topik/subjek dan tugas/kategori.</li>
-            <li><b>Fitur:</b> Fungsionalitas filter dan pencarian konten.</li>
-            <li><b>Fitur:</b> Pilihan tema (Light, Dark, Nordic Twilight).</li>
-            <li><b>Fitur:</b> Skala UI yang dapat disesuaikan.</li>
-        </ul>
-        """
-        QMessageBox.about(self.win, "Riwayat Versi", version_history_text)
+        """Menampilkan dialog dengan riwayat versi aplikasi dari file JSON."""
+        try:
+            with open('assets/version_history.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            html_output = "<h3>Riwayat Versi</h3>"
+            for entry in data['versions']:
+                html_output += f"<p><b>{entry['version']} ({entry['date']})</b></p>"
+                html_output += "<ul>"
+                for change in entry['changes']:
+                    html_output += f"<li>{change}</li>"
+                html_output += "</ul>"
+            
+            QMessageBox.about(self.win, "Riwayat Versi", html_output)
 
+        except FileNotFoundError:
+            QMessageBox.critical(self.win, "Error", "File riwayat versi tidak ditemukan.")
+        except json.JSONDecodeError:
+            QMessageBox.critical(self.win, "Error", "Format file riwayat versi (JSON) tidak valid.")
 
     def set_date_filter(self, filter_type):
         """Mengatur filter tanggal dan merefresh tampilan konten."""

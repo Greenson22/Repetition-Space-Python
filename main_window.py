@@ -18,7 +18,7 @@ class ContentManager(QMainWindow):
         
         self.setWindowTitle("Repetition App")
         self.setGeometry(100, 100, 1200, 650)
-        self.setWindowIcon(QIcon('images/icons/bird_2.png'))
+        self.setWindowIcon(QIcon('assets/images/icons/bird_2.png'))
         
         # --- Inisialisasi Properti Inti ---
         self.base_path = config.BASE_PATH
