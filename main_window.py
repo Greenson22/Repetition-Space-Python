@@ -1,4 +1,4 @@
-# file: test/main_window.py
+# file: main_window.py
 
 from PyQt6.QtWidgets import QMainWindow, QStatusBar
 from PyQt6.QtGui import QIcon
@@ -16,25 +16,25 @@ from utils import resource_path
 class ContentManager(QMainWindow):
     def __init__(self):
         super().__init__()
-        
+
         self.setWindowTitle("Repetition App")
         self.setGeometry(100, 100, 1200, 650)
         self.setWindowIcon(QIcon(resource_path("assets/images/icons/bird_2.png")))
-        
+
         # --- Inisialisasi Properti Inti ---
         self.base_path = config.BASE_PATH
-        self.task_data_file = config.TASK_BASE_PATH 
+        self.task_data_file = config.TASK_BASE_PATH
         self.current_topic_path = None
         self.current_subject_path = None
         self.current_content = None
-        self.current_task_category = None 
+        self.current_task_category = None
         self.sort_column = 1
         self.sort_order = Qt.SortOrder.AscendingOrder
-        self.settings = QSettings("MyCompany", "RepetitionApp") # Nama pengaturan diubah
+        self.settings = QSettings("MyCompany", "RepetitionApp")
         self.date_filter = "all"
         self.search_query = ""
-        self.scale_config = {} 
-        self.Qt = Qt # Memberikan akses ke namespace Qt untuk manajer
+        self.scale_config = {}
+        self.Qt = Qt
 
         # --- Inisialisasi Modul-Modul Helper ---
         self.data_manager = DataManager(self.base_path)
@@ -43,21 +43,21 @@ class ContentManager(QMainWindow):
         self.ui_manager = UIManager(self)
         self.state_manager = StateManager(self)
         self.refresh_manager = RefreshManager(self)
-        
+
         # --- Setup UI ---
         self.ui_builder.setup_ui()
         self.ui_manager.create_menu_bar()
         self.setStatusBar(QStatusBar())
         self.status_bar = self.statusBar()
-        
+
         # --- Load Data dan Preferensi Awal ---
         self.ui_manager.load_theme()
-        self.ui_manager.load_scale() 
+        self.ui_manager.load_scale()
         self.refresh_manager.refresh_topic_list()
-        self.refresh_manager.refresh_task_category_list() 
+        self.refresh_manager.refresh_task_category_list()
         self.handlers.update_button_states()
         self.content_tree.header().setSortIndicator(self.sort_column, self.sort_order)
-        
+
         # --- Memuat Status Terakhir ---
         self.state_manager.load_state()
 

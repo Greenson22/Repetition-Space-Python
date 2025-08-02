@@ -2,7 +2,7 @@
 
 import os
 import shutil
-from PyQt6.QtWidgets import (QMessageBox, QPushButton, QFileDialog, QMenu, 
+from PyQt6.QtWidgets import (QMessageBox, QPushButton, QFileDialog, QMenu,
                              QDialog, QVBoxLayout, QListWidget, QListWidgetItem,
                              QHBoxLayout, QAbstractItemView)
 from PyQt6.QtGui import QAction, QActionGroup
@@ -19,7 +19,7 @@ class UIManager:
     def __init__(self, main_window):
         self.win = main_window
         self.settings = main_window.settings
-        self.theme_menu = None 
+        self.theme_menu = None
 
     def create_menu_bar(self):
         """Membuat dan menginisialisasi menu bar."""
@@ -34,6 +34,25 @@ class UIManager:
             action.triggered.connect(lambda checked, name=scale_name: self.set_scale(name))
             scale_menu.addAction(action)
             self.win.scale_group.addAction(action)
+
+        # --- FITUR BARU: Menu Format Tanggal ---
+        date_format_menu = menu_bar.addMenu("Format Tanggal")
+        self.win.date_format_group = QActionGroup(self.win)
+        self.win.date_format_group.setExclusive(True)
+        date_format_actions = {
+            "Panjang (Sabtu, 02 Agustus 2025)": "long",
+            "Sedang (02 Agu 2025)": "medium",
+            "Pendek (2025-08-02)": "short"
+        }
+        current_format = self.settings.value("date_format", "long")
+        for text, format_id in date_format_actions.items():
+            action = QAction(text, self.win, checkable=True)
+            action.triggered.connect(lambda checked, f=format_id: self.set_date_format(f))
+            date_format_menu.addAction(action)
+            self.win.date_format_group.addAction(action)
+            if format_id == current_format:
+                action.setChecked(True)
+        # --- AKHIR FITUR BARU ---
 
         filter_menu = menu_bar.addMenu("Filter")
         filter_group = QActionGroup(self.win)
@@ -64,7 +83,12 @@ class UIManager:
         about_action = QAction("Tentang Aplikasi", self.win)
         about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
-        
+
+    def set_date_format(self, format_type):
+        """Menyimpan format tanggal dan merefresh semua tampilan."""
+        self.settings.setValue("date_format", format_type)
+        self.win.refresh_manager.refresh_all_views()
+
     def setup_theme_menu(self, menu_bar):
         """Menginisialisasi menu tema dan mengisinya."""
         self.theme_menu = menu_bar.addMenu("Mode")
@@ -77,7 +101,7 @@ class UIManager:
         self.theme_menu.clear()
         for action in self.win.theme_group.actions():
             self.win.theme_group.removeAction(action)
-            
+
         current_theme = self.settings.value("theme", "system")
 
         actions = {
@@ -96,20 +120,20 @@ class UIManager:
 
         os.makedirs(self.THEMES_DIR, exist_ok=True)
         custom_themes = [f for f in os.listdir(self.THEMES_DIR) if f.endswith(".qss")]
-        
+
         if custom_themes:
             custom_menu = self.theme_menu.addMenu("Tema Kustom")
             for theme_file in sorted(custom_themes):
                 theme_path = os.path.join(self.THEMES_DIR, theme_file)
                 theme_name = os.path.splitext(theme_file)[0].replace("_", " ").title()
-                
+
                 action = QAction(theme_name, self.win, checkable=True)
                 action.triggered.connect(lambda checked, p=theme_path: self.set_theme(p))
                 custom_menu.addAction(action)
                 self.win.theme_group.addAction(action)
                 if theme_path == current_theme:
                     action.setChecked(True)
-            
+
             custom_menu.addSeparator()
             manage_action = QAction("Kelola Tema...", self.win)
             manage_action.triggered.connect(self.show_manage_themes_dialog)
@@ -142,17 +166,17 @@ class UIManager:
 
         list_widget = QListWidget()
         list_widget.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        
+
         custom_themes = [f for f in os.listdir(self.THEMES_DIR) if f.endswith(".qss")]
         for theme_file in sorted(custom_themes):
             list_widget.addItem(QListWidgetItem(theme_file))
-        
+
         layout.addWidget(list_widget)
 
         button_layout = QHBoxLayout()
         delete_button = QPushButton("Hapus yang Dipilih")
         delete_button.clicked.connect(lambda: self.delete_selected_themes(list_widget, dialog))
-        
+
         button_layout.addWidget(delete_button)
         layout.addLayout(button_layout)
         dialog.exec()
@@ -184,10 +208,10 @@ class UIManager:
                         theme_was_deleted = True
                 except OSError as e:
                     QMessageBox.critical(dialog, "Error", f"Gagal menghapus {theme_file}: {e}")
-            
+
             if theme_was_deleted:
                 self.set_theme("system") # Kembali ke tema default
-            
+
             self.populate_theme_menu()
             dialog.close()
 
@@ -252,7 +276,7 @@ class UIManager:
                 print(f"Gagal memuat tema kustom: {e}")
                 self.settings.setValue("theme", "system")
                 theme_setting = "system"
-        
+
         if theme_setting == "dark":
             stylesheet = config.DARK_STYLESHEET
         elif theme_setting == "light":
@@ -261,10 +285,10 @@ class UIManager:
             stylesheet = config.NORDIC_TWILIGHT_STYLESHEET
         elif theme_setting == "system":
             stylesheet = config.DARK_STYLESHEET if self.win.palette().window().color().lightness() < 128 else config.LIGHT_STYLESHEET
-        
+
         if stylesheet:
             self.win.setStyleSheet(stylesheet)
-    
+
     def set_scale(self, scale_name):
         """Menyimpan dan menerapkan skala UI."""
         self.settings.setValue("ui_scale", scale_name)
@@ -286,13 +310,13 @@ class UIManager:
         list_font = QFont("Segoe UI", self.win.scale_config['list_font_size'])
         title_font = QFont("Segoe UI", self.win.scale_config['title_font_size'], QFont.Weight.Bold)
         icon_size = QSize(self.win.scale_config['icon_size'], self.win.scale_config['icon_size'])
-        
-        for label in [self.win.topic_title_label, self.win.subject_title_label, 
-                      self.win.content_title_label, self.win.task_category_title_label, 
+
+        for label in [self.win.topic_title_label, self.win.subject_title_label,
+                      self.win.content_title_label, self.win.task_category_title_label,
                       self.win.task_title_label]:
             label.setFont(title_font)
-        
-        for widget in [self.win.topic_list, self.win.subject_list, 
+
+        for widget in [self.win.topic_list, self.win.subject_list,
                        self.win.task_category_list]:
             widget.setFont(list_font)
             widget.setIconSize(icon_size)

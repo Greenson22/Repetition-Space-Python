@@ -43,6 +43,7 @@ class RefreshManager:
     def __init__(self, main_window):
         self.win = main_window
         self.data_manager = main_window.data_manager
+        self.settings = main_window.settings
 
     def refresh_all_views(self):
         """Memanggil semua fungsi refresh."""
@@ -56,27 +57,29 @@ class RefreshManager:
         self.win.topic_list.clear()
         topics = self.data_manager.get_topics()
         for topic_data in topics:
-            item = QListWidgetItem(f"{topic_data.get('icon', '📁')} {topic_data.get('name', '')}")
+            item = QListWidgetItem(f"{topic_data.get('icon', '??')} {topic_data.get('name', '')}")
             self.win.topic_list.addItem(item)
 
     def refresh_subject_list(self):
         current_item_text = self.win.subject_list.currentItem().text() if self.win.subject_list.currentItem() else None
         self.win.subject_list.blockSignals(True)
         self.win.subject_list.clear()
-        
+
         subjects = self.data_manager.get_subjects(self.win.current_topic_path)
         item_to_reselect = None
-        
+        date_format = self.settings.value("date_format", "long")
+
         for name, date, code, icon in subjects:
             display_text = f"{icon} {name}"
             if date and code:
-                display_text += f"\n  ({utils.format_date_with_day(date)} - {code})"
-            
+                formatted_date = utils.format_date(date, date_format)
+                display_text += f"\n  ({formatted_date} - {code})"
+
             item = QListWidgetItem(display_text)
             self.win.subject_list.addItem(item)
             if display_text == current_item_text:
                 item_to_reselect = item
-        
+
         if item_to_reselect:
             self.win.subject_list.setCurrentItem(item_to_reselect)
 
@@ -97,9 +100,10 @@ class RefreshManager:
 
         self.win.content_tree.clear()
         if not self.win.current_subject_path: return
-        
+
         self.win.current_content = self.data_manager.load_content(self.win.current_subject_path)
-        
+        date_format = self.settings.value("date_format", "long")
+
         # Langkah 1: Pasangkan data dengan indeks aslinya SEBELUM diproses
         discussions_to_process = [
             {"data": data, "original_index": index}
@@ -110,10 +114,10 @@ class RefreshManager:
         if self.win.date_filter != "all":
             today_str = datetime.now().strftime("%Y-%m-%d")
             filtered_list = []
-            
+
             for item in discussions_to_process:
                 disc_data = item['data']
-                
+
                 # Filter untuk diskusi yang memiliki 'points'
                 if disc_data.get("points"):
                     filtered_points = []
@@ -124,47 +128,52 @@ class RefreshManager:
                         if (self.win.date_filter == "today" and point_date_str == today_str) or \
                            (self.win.date_filter == "past_and_today" and point_date_str <= today_str):
                             filtered_points.append(point)
-                    
+
                     if filtered_points:
                         new_disc_data = disc_data.copy()
                         new_disc_data["points"] = filtered_points
                         filtered_list.append({"data": new_disc_data, "original_index": item["original_index"]})
-                
+
                 # Filter untuk diskusi tanpa 'points'
                 else:
                     disc_date_str = disc_data.get("date")
                     if not disc_date_str: continue
-                    
+
                     if (self.win.date_filter == "today" and disc_date_str == today_str) or \
                        (self.win.date_filter == "past_and_today" and disc_date_str <= today_str):
                         filtered_list.append(item)
-            
+
             discussions_to_process = filtered_list
-            
+
         # Langkah 3: Urutkan daftar (yang mungkin sudah terfilter)
         sorted_discussions = sorted(
             discussions_to_process,
             key=lambda item: get_content_sort_key(item['data'])
         )
-        
+
         item_to_reselect = None
         # Langkah 4: Bangun Tree UI menggunakan daftar yang sudah benar
-        for item in sorted_discussions:
+        for i, item in enumerate(sorted_discussions): # Tambahkan enumerate untuk penomoran
             original_index = item['original_index']
             discussion_data = item['data']
-            
+
+            # --- PERUBAHAN: Tambahkan nomor di depan diskusi ---
+            discussion_text = discussion_data.get("discussion", "Diskusi kosong")
             parent_item = QTreeWidgetItem(self.win.content_tree)
-            parent_item.setText(0, discussion_data.get("discussion", "Diskusi kosong"))
+            parent_item.setText(0, f"{i + 1}. {discussion_text}")
+            # --- AKHIR PERUBAHAN ---
+
             # Simpan data dengan INDEKS ASLI yang benar
             item_data_for_crud = {"type": "discussion", "index": original_index}
             parent_item.setData(0, Qt.ItemDataRole.UserRole, item_data_for_crud)
-            
+
             if not discussion_data.get("points", []):
-                parent_item.setText(1, utils.format_date_with_day(discussion_data.get("date", "")))
+                parent_item.setText(1, utils.format_date(discussion_data.get("date", ""), date_format))
                 self.win.handlers.create_repetition_combobox(parent_item, 2, discussion_data.get("repetition_code", "R0D"), item_data_for_crud)
             else:
                 point_dates = [p.get("date") for p in discussion_data.get("points", []) if p.get("date")]
-                if point_dates: parent_item.setText(1, f"({utils.format_date_with_day(min(point_dates))})")
+                if point_dates:
+                    parent_item.setText(1, f"({utils.format_date(min(point_dates), date_format)})")
 
             if selected_item_data == item_data_for_crud:
                 item_to_reselect = parent_item
@@ -175,7 +184,7 @@ class RefreshManager:
                 item_data = {"type": "point", "parent_index": original_index, "index": j}
                 child_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
                 child_item.setText(0, point_data.get("point_text", "Point kosong"))
-                child_item.setText(1, utils.format_date_with_day(point_data.get("date", "")))
+                child_item.setText(1, utils.format_date(point_data.get("date", ""), date_format))
                 self.win.handlers.create_repetition_combobox(child_item, 2, point_data.get("repetition_code", "R0D"), item_data)
 
                 if selected_item_data == item_data:
@@ -183,10 +192,10 @@ class RefreshManager:
 
             if self.win.search_query or original_index in expanded_indices:
                 parent_item.setExpanded(True)
-        
+
         if item_to_reselect:
             self.win.content_tree.setCurrentItem(item_to_reselect)
-            
+
         self.win.handlers.update_button_states()
 
 
@@ -197,9 +206,6 @@ class RefreshManager:
         self.refresh_content_tree()
         self.refresh_subject_list()
 
-# file: test/core/refresh_manager.py
-
-# ... (kode lain di atasnya biarkan saja) ...
     def refresh_task_category_list(self):
         """Merefresh daftar kategori task dengan penanganan format data lama/baru."""
         current_item_text = self.win.task_category_list.currentItem().text() if self.win.task_category_list.currentItem() else None
@@ -208,22 +214,16 @@ class RefreshManager:
 
         self.win.task_category_list.addItem("Semua Task")
         categories = self.data_manager.get_task_categories()
-        
+
         item_to_reselect = None
         for cat_data in categories:
             display_text = ""
-            # --- PERBAIKAN DIMULAI DI SINI ---
-            # Cek apakah cat_data adalah dictionary (format baru) atau string (format lama)
             if isinstance(cat_data, dict):
-                # Format baru: {'name': 'NamaKategori', 'icon': '📁', ...}
-                display_text = f"{cat_data.get('icon', '📂')} {cat_data.get('name', '')}"
+                display_text = f"{cat_data.get('icon', '')} {cat_data.get('name', '')}"
             elif isinstance(cat_data, str):
-                # Format lama: "NamaKategori"
-                display_text = f"📂 {cat_data}"
+                display_text = f"?? {cat_data}"
             else:
-                # Lewati jika format tidak dikenali
                 continue
-            # --- PERBAIKAN SELESAI ---
 
             item = QListWidgetItem(display_text)
             self.win.task_category_list.addItem(item)
@@ -239,10 +239,8 @@ class RefreshManager:
         if self.win.task_category_list.currentItem():
              self.win.handlers.task_category_selected(self.win.task_category_list.currentItem(), None)
 
-# ... (sisa kode di bawahnya biarkan saja) ...
     def refresh_task_list(self):
         """Merefresh daftar task berdasarkan kategori yang dipilih."""
-        # Blokir sinyal untuk mencegah trigger event saat kita memodifikasi item
         self.win.task_tree.blockSignals(True)
         self.win.task_tree.clear()
 
@@ -251,39 +249,37 @@ class RefreshManager:
             self.win.task_tree.blockSignals(False)
             return
 
-        tasks = (self.data_manager.get_all_tasks() if self.win.current_task_category == "Semua Task" 
+        tasks = (self.data_manager.get_all_tasks() if self.win.current_task_category == "Semua Task"
                  else self.data_manager.get_tasks(self.win.current_task_category))
+        date_format = self.settings.value("date_format", "long")
 
         for index, task_data in enumerate(tasks):
             item = QTreeWidgetItem(self.win.task_tree)
-            
-            # Mengatur item agar bisa di-checklist
+
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            # Mengatur status checklist berdasarkan data
             check_state = Qt.CheckState.Checked if task_data.get('checked', False) else Qt.CheckState.Unchecked
             item.setCheckState(0, check_state)
 
             item.setText(0, task_data.get('name', ''))
             item.setText(1, str(task_data.get('count', 0)))
-            item.setText(2, task_data.get('date', ''))
-            
+            item.setText(2, utils.format_date(task_data.get('date', ''), date_format))
+
             user_data = {
                 "original_name": task_data.get("original_name", task_data.get("name")),
                 "category": task_data.get("category", self.win.current_task_category),
-                "index": index # Simpan index asli dari list
+                "index": index
             }
             item.setData(0, Qt.ItemDataRole.UserRole, user_data)
-            
+
         self.win.handlers.update_button_states()
-        # Aktifkan kembali sinyal setelah selesai
         self.win.task_tree.blockSignals(False)
-        
+
     def reselect_task(self, task_name_to_select, category_name_to_select):
         """Memilih kembali item task setelah operasi."""
         for i in range(self.win.task_tree.topLevelItemCount()):
             item = self.win.task_tree.topLevelItem(i)
             task_info = item.data(0, Qt.ItemDataRole.UserRole)
-            if (task_info.get("original_name") == task_name_to_select and 
+            if (task_info.get("original_name") == task_name_to_select and
                 task_info.get("category") == category_name_to_select):
                 self.win.task_tree.setCurrentItem(item)
                 break
