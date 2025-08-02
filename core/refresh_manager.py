@@ -67,6 +67,44 @@ class RefreshManager:
         
         self.win.current_content = self.data_manager.load_content(self.win.current_subject_path)
         discussions = self.win.current_content.get("content", [])
+
+        # <<< MULAI KODE BARU >>>
+        # --- Implementasi Filter Tanggal ---
+        if self.win.date_filter != "all":
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            filtered_discussions = []
+            
+            for disc in discussions:
+                # Logika untuk memfilter point di dalam diskusi
+                if disc.get("points"):
+                    filtered_points = []
+                    for point in disc.get("points", []):
+                        point_date_str = point.get("date")
+                        if not point_date_str: continue # Lewati jika tidak ada tanggal
+
+                        if self.win.date_filter == "today" and point_date_str == today_str:
+                            filtered_points.append(point)
+                        elif self.win.date_filter == "past_and_today" and point_date_str <= today_str:
+                            filtered_points.append(point)
+                    
+                    # Jika setelah difilter ada point yang tersisa, masukkan kembali diskusi
+                    if filtered_points:
+                        new_disc = disc.copy()
+                        new_disc["points"] = filtered_points
+                        filtered_discussions.append(new_disc)
+                
+                # Logika untuk memfilter diskusi yang tidak punya point
+                else:
+                    disc_date_str = disc.get("date")
+                    if not disc_date_str: continue # Lewati jika tidak ada tanggal
+
+                    if self.win.date_filter == "today" and disc_date_str == today_str:
+                        filtered_discussions.append(disc)
+                    elif self.win.date_filter == "past_and_today" and disc_date_str <= today_str:
+                        filtered_discussions.append(disc)
+            
+            # Ganti list diskusi asli dengan yang sudah difilter
+            discussions = filtered_discussions
         
         # ... Logika filter pencarian, filter tanggal, dan penyortiran ...
         # (Kode ini sama seperti di file asli, jadi disingkat untuk kejelasan)
