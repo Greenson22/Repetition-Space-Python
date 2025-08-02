@@ -5,6 +5,39 @@ from PyQt6.QtCore import Qt
 from datetime import datetime
 import utils
 
+def get_content_sort_key(item_data):
+    """
+    Menghasilkan kunci pengurutan untuk diskusi atau poin.
+    - Prioritas 1: Kode repetisi (R0D, R1D, ..., Finish). 'Finish' akan dianggap paling akhir.
+    - Prioritas 2: Tanggal (terlama ke terbaru).
+    """
+    repetition_code = item_data.get("repetition_code")
+    date_str = item_data.get("date")
+
+    # Memberikan nilai default yang besar untuk item tanpa tanggal atau dengan kode 'Finish'
+    # agar mereka diletakkan di akhir.
+    order_key = float('inf')
+    date_key = datetime.max
+
+    if repetition_code and repetition_code != "Finish":
+        try:
+            numeric_part = ''.join(filter(str.isdigit, repetition_code))
+            if numeric_part:
+                order_key = int(numeric_part)
+            else:
+                order_key = float('inf')
+        except (ValueError, TypeError):
+            order_key = float('inf')
+
+    if date_str:
+        try:
+            date_key = datetime.strptime(date_str, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            date_key = datetime.max
+
+    return (order_key, date_key)
+
+
 class RefreshManager:
     """Kelas untuk mengelola semua operasi refresh UI."""
     def __init__(self, main_window):
@@ -50,8 +83,9 @@ class RefreshManager:
         self.win.subject_list.blockSignals(False)
 
     def refresh_content_tree(self):
-        # Logika kompleks untuk mem-filter dan menyortir konten tetap di sini
-        # untuk menjaga keterbacaan, namun dipanggil dari satu tempat.
+        """
+        Merefresh, memfilter, dan menyortir tampilan konten dengan menjaga integritas indeks data asli.
+        """
         expanded_indices = {
             item.data(0, Qt.ItemDataRole.UserRole).get("index")
             for i in range(self.win.content_tree.topLevelItemCount())
@@ -59,68 +93,69 @@ class RefreshManager:
             and (item_data := item.data(0, Qt.ItemDataRole.UserRole))
             and item_data.get("type") == "discussion"
         }
-        
         selected_item_data = self.win.content_tree.currentItem().data(0, Qt.ItemDataRole.UserRole) if self.win.content_tree.currentItem() else None
 
         self.win.content_tree.clear()
         if not self.win.current_subject_path: return
         
         self.win.current_content = self.data_manager.load_content(self.win.current_subject_path)
-        discussions = self.win.current_content.get("content", [])
+        
+        # Langkah 1: Pasangkan data dengan indeks aslinya SEBELUM diproses
+        discussions_to_process = [
+            {"data": data, "original_index": index}
+            for index, data in enumerate(self.win.current_content.get("content", []))
+        ]
 
-        # <<< MULAI KODE BARU >>>
-        # --- Implementasi Filter Tanggal ---
+        # Langkah 2: Terapkan filter pada daftar yang sudah memiliki indeks asli
         if self.win.date_filter != "all":
             today_str = datetime.now().strftime("%Y-%m-%d")
-            filtered_discussions = []
+            filtered_list = []
             
-            for disc in discussions:
-                # Logika untuk memfilter point di dalam diskusi
-                if disc.get("points"):
+            for item in discussions_to_process:
+                disc_data = item['data']
+                
+                # Filter untuk diskusi yang memiliki 'points'
+                if disc_data.get("points"):
                     filtered_points = []
-                    for point in disc.get("points", []):
+                    for point in disc_data.get("points", []):
                         point_date_str = point.get("date")
-                        if not point_date_str: continue # Lewati jika tidak ada tanggal
+                        if not point_date_str: continue
 
-                        if self.win.date_filter == "today" and point_date_str == today_str:
-                            filtered_points.append(point)
-                        elif self.win.date_filter == "past_and_today" and point_date_str <= today_str:
+                        if (self.win.date_filter == "today" and point_date_str == today_str) or \
+                           (self.win.date_filter == "past_and_today" and point_date_str <= today_str):
                             filtered_points.append(point)
                     
-                    # Jika setelah difilter ada point yang tersisa, masukkan kembali diskusi
                     if filtered_points:
-                        new_disc = disc.copy()
-                        new_disc["points"] = filtered_points
-                        filtered_discussions.append(new_disc)
+                        new_disc_data = disc_data.copy()
+                        new_disc_data["points"] = filtered_points
+                        filtered_list.append({"data": new_disc_data, "original_index": item["original_index"]})
                 
-                # Logika untuk memfilter diskusi yang tidak punya point
+                # Filter untuk diskusi tanpa 'points'
                 else:
-                    disc_date_str = disc.get("date")
-                    if not disc_date_str: continue # Lewati jika tidak ada tanggal
-
-                    if self.win.date_filter == "today" and disc_date_str == today_str:
-                        filtered_discussions.append(disc)
-                    elif self.win.date_filter == "past_and_today" and disc_date_str <= today_str:
-                        filtered_discussions.append(disc)
+                    disc_date_str = disc_data.get("date")
+                    if not disc_date_str: continue
+                    
+                    if (self.win.date_filter == "today" and disc_date_str == today_str) or \
+                       (self.win.date_filter == "past_and_today" and disc_date_str <= today_str):
+                        filtered_list.append(item)
             
-            # Ganti list diskusi asli dengan yang sudah difilter
-            discussions = filtered_discussions
-        
-        # ... Logika filter pencarian, filter tanggal, dan penyortiran ...
-        # (Kode ini sama seperti di file asli, jadi disingkat untuk kejelasan)
-        
-        discussions_to_process = [{"data": data, "original_index": index} for index, data in enumerate(discussions)]
-        
-        # Placeholder untuk logika sorting yang kompleks
-        sorted_indexed_discussions = sorted(
-            [(item["original_index"], item["data"]) for item in discussions_to_process],
-            key=lambda x: x[1].get("discussion", "").lower() 
+            discussions_to_process = filtered_list
+            
+        # Langkah 3: Urutkan daftar (yang mungkin sudah terfilter)
+        sorted_discussions = sorted(
+            discussions_to_process,
+            key=lambda item: get_content_sort_key(item['data'])
         )
         
         item_to_reselect = None
-        for original_index, discussion_data in sorted_indexed_discussions:
+        # Langkah 4: Bangun Tree UI menggunakan daftar yang sudah benar
+        for item in sorted_discussions:
+            original_index = item['original_index']
+            discussion_data = item['data']
+            
             parent_item = QTreeWidgetItem(self.win.content_tree)
             parent_item.setText(0, discussion_data.get("discussion", "Diskusi kosong"))
+            # Simpan data dengan INDEKS ASLI yang benar
             item_data_for_crud = {"type": "discussion", "index": original_index}
             parent_item.setData(0, Qt.ItemDataRole.UserRole, item_data_for_crud)
             
@@ -128,16 +163,16 @@ class RefreshManager:
                 parent_item.setText(1, utils.format_date_with_day(discussion_data.get("date", "")))
                 self.win.handlers.create_repetition_combobox(parent_item, 2, discussion_data.get("repetition_code", "R0D"), item_data_for_crud)
             else:
-                 point_dates = [p.get("date") for p in discussion_data.get("points", []) if p.get("date")]
-                 if point_dates: parent_item.setText(1, f"({utils.format_date_with_day(min(point_dates))})")
+                point_dates = [p.get("date") for p in discussion_data.get("points", []) if p.get("date")]
+                if point_dates: parent_item.setText(1, f"({utils.format_date_with_day(min(point_dates))})")
 
             if selected_item_data == item_data_for_crud:
                 item_to_reselect = parent_item
 
+            # Indeks point bersifat relatif terhadap induknya, jadi tidak terpengaruh filter diskusi
             for j, point_data in enumerate(discussion_data.get("points", [])):
                 child_item = QTreeWidgetItem(parent_item)
-                original_point_index = j # Disederhanakan untuk contoh
-                item_data = {"type": "point", "parent_index": original_index, "index": original_point_index}
+                item_data = {"type": "point", "parent_index": original_index, "index": j}
                 child_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
                 child_item.setText(0, point_data.get("point_text", "Point kosong"))
                 child_item.setText(1, utils.format_date_with_day(point_data.get("date", "")))
@@ -153,6 +188,7 @@ class RefreshManager:
             self.win.content_tree.setCurrentItem(item_to_reselect)
             
         self.win.handlers.update_button_states()
+
 
     def save_and_refresh_content(self):
         """Menyimpan konten saat ini dan merefresh tampilan."""
