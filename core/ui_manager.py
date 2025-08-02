@@ -7,6 +7,8 @@ from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt
 import config
 import json
+# Menjadi seperti ini
+from utils import resource_path
 
 class UIManager:
     """Kelas untuk mengelola elemen UI seperti menu, tema, dan skala."""
@@ -123,7 +125,7 @@ class UIManager:
     def show_version_history_dialog(self):
         """Menampilkan dialog dengan riwayat versi aplikasi dari file JSON."""
         try:
-            with open('assets/version_history.json', 'r', encoding='utf-8') as f:
+            with open(resource_path('assets/version_history.json'), 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             html_output = "<h3>Riwayat Versi</h3>"
