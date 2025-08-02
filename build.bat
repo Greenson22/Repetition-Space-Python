@@ -18,7 +18,7 @@ ECHO Virtual environment berhasil diaktifkan.
 REM --- Langkah 2: Menjalankan Perintah PyInstaller ---
 ECHO.
 ECHO [2/4] Memulai proses pembuatan aplikasi .exe...
-pyinstaller --name "RepetitionApp AlphaV1" --onefile --windowed --distpath hasil --add-data "images;images" --add-data "data;data" --icon="images/icons/bird_2.png" main.py
+pyinstaller --name "RepetitionApp AlphaV1" --onefile --windowed --distpath hasil --add-data "assets;assets" --add-data "data;data" --icon="assets/images/icons/bird_2.png" main.py
 
 REM --- Jika Gagal, Hentikan Skrip ---
 IF %ERRORLEVEL% NEQ 0 (
