@@ -64,8 +64,8 @@ class EventHandlers:
                     "Topics dari file backup berhasil diimpor."
                 )
                 # Refresh semua list untuk menampilkan data baru
-                self.win.refresh_topic_list()
-                self.win.refresh_task_category_list()
+                self.win.refresh_manager.refresh_topic_list()
+                self.win.refresh_manager.refresh_task_category_list()
             except Exception as e:
                 QMessageBox.critical(
                     self.win,
@@ -123,7 +123,7 @@ class EventHandlers:
         else:
             topic_name = current.text().split(" ", 1)[1] # Ambil nama setelah ikon
             self.win.current_topic_path = os.path.join(self.win.base_path, topic_name)
-            self.win.refresh_subject_list()
+            self.win.refresh_manager.refresh_subject_list()
             # BARU: Otomatis pilih subject pertama jika ada
             if self.win.subject_list.count() > 0:
                 self.win.subject_list.setCurrentRow(0)
@@ -141,7 +141,7 @@ class EventHandlers:
             
             subject_file_name = f"{subject_name}.json"
             self.win.current_subject_path = os.path.join(self.win.current_topic_path, subject_file_name)
-            self.win.refresh_content_tree()
+            self.win.refresh_manager.refresh_content_tree()
         self.update_button_states()
 
 
@@ -151,7 +151,7 @@ class EventHandlers:
         if ok and name:
             try:
                 self.data_manager.create_directory(os.path.join(self.win.base_path, name))
-                self.win.refresh_topic_list()
+                self.win.refresh_manager.refresh_topic_list()
             except Exception as e:
                 QMessageBox.warning(self.win, "Gagal", f"Tidak dapat membuat topic: {e}")
 
@@ -163,7 +163,7 @@ class EventHandlers:
         if ok and new_name and new_name != old_name:
             try:
                 self.data_manager.rename_path(os.path.join(self.win.base_path, old_name), os.path.join(self.win.base_path, new_name))
-                self.win.refresh_topic_list()
+                self.win.refresh_manager.refresh_topic_list()
             except Exception as e:
                 QMessageBox.warning(self.win, "Gagal", f"Tidak dapat mengubah nama: {e}")
     
@@ -175,7 +175,7 @@ class EventHandlers:
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 self.data_manager.delete_directory(os.path.join(self.win.base_path, name))
-                self.win.refresh_topic_list()
+                self.win.refresh_manager.refresh_topic_list()
             except Exception as e:
                 QMessageBox.warning(self.win, "Gagal", f"Tidak dapat menghapus: {e}")
 
@@ -199,7 +199,7 @@ class EventHandlers:
             self.win.current_content = {"content": [], "metadata": {"earliest_date": None, "earliest_code": None, "icon": config.DEFAULT_SUBJECT_ICON}}
             self.win.current_subject_path = file_path
             self.data_manager.save_content(file_path, self.win.current_content)
-            self.win.refresh_subject_list()
+            self.win.refresh_manager.refresh_subject_list()
 
 
     def rename_subject(self):
@@ -215,7 +215,7 @@ class EventHandlers:
             new_file = os.path.join(self.win.current_topic_path, f"{new_name}.json")
             try:
                 self.data_manager.rename_path(old_file, new_file)
-                self.win.refresh_subject_list()
+                self.win.refresh_manager.refresh_subject_list()
             except Exception as e:
                 QMessageBox.warning(self.win, "Gagal", f"Tidak dapat mengubah nama file: {e}")
 
@@ -231,7 +231,7 @@ class EventHandlers:
             file_path = os.path.join(self.win.current_topic_path, f"{name}.json")
             try:
                 self.data_manager.delete_file(file_path)
-                self.win.refresh_subject_list()
+                self.win.refresh_manager.refresh_subject_list()
             except Exception as e:
                 QMessageBox.warning(self.win, "Gagal", f"Tidak dapat menghapus file: {e}")
 
@@ -246,7 +246,7 @@ class EventHandlers:
         
         if ok and icon:
             self.data_manager.save_topic_config(topic_name, {'icon': icon})
-            self.win.refresh_topic_list()
+            self.win.refresh_manager.refresh_topic_list()
 
     def change_subject_icon(self):
         if not self.win.current_subject_path: return
@@ -262,7 +262,7 @@ class EventHandlers:
                 
             self.win.current_content["metadata"]["icon"] = icon
             self.data_manager.save_content(self.win.current_subject_path, self.win.current_content)
-            self.win.refresh_subject_list()
+            self.win.refresh_manager.refresh_subject_list()
 
     # --- Logika CRUD untuk Content ---
     def add_discussion(self):
@@ -272,7 +272,7 @@ class EventHandlers:
             date_str = datetime.now().strftime("%Y-%m-%d")
             new_discussion = { "discussion": text, "date": date_str, "repetition_code": "R0D", "points": [] }
             self.win.current_content["content"].append(new_discussion)
-            self.win.save_and_refresh_content()
+            self.win.refresh_manager.save_and_refresh_content()
 
     def edit_discussion(self):
         item = self.win.content_tree.currentItem()
@@ -282,7 +282,7 @@ class EventHandlers:
         new_text, ok = QInputDialog.getText(self.win, "Edit Diskusi", "Teks Diskusi:", text=old_text)
         if ok and new_text:
             self.win.current_content["content"][idx]["discussion"] = new_text
-            self.win.save_and_refresh_content()
+            self.win.refresh_manager.save_and_refresh_content()
 
     def delete_discussion(self):
         item = self.win.content_tree.currentItem()
@@ -290,7 +290,7 @@ class EventHandlers:
         idx = item.data(0, Qt.ItemDataRole.UserRole)["index"]
         if QMessageBox.question(self.win, "Konfirmasi", "Yakin hapus diskusi ini?") == QMessageBox.StandardButton.Yes:
             del self.win.current_content["content"][idx]
-            self.win.save_and_refresh_content()
+            self.win.refresh_manager.save_and_refresh_content()
 
     def add_point(self):
         parent_item = self.win.content_tree.currentItem()
@@ -310,7 +310,7 @@ class EventHandlers:
                 discussion["date"] = None
                 discussion["repetition_code"] = None
             discussion["points"].append(new_point)
-            self.win.save_and_refresh_content()
+            self.win.refresh_manager.save_and_refresh_content()
 
     def edit_point(self):
         item = self.win.content_tree.currentItem()
@@ -321,7 +321,7 @@ class EventHandlers:
         new_text, ok = QInputDialog.getText(self.win, "Edit Point", "Teks Point:", text=old_text)
         if ok and new_text:
             self.win.current_content["content"][parent_idx]["points"][point_idx]["point_text"] = new_text
-            self.win.save_and_refresh_content()
+            self.win.refresh_manager.save_and_refresh_content()
 
     def delete_point(self):
         item = self.win.content_tree.currentItem()
@@ -334,7 +334,7 @@ class EventHandlers:
             if not discussion["points"]:
                 discussion["date"] = datetime.now().strftime("%Y-%m-%d")
                 discussion["repetition_code"] = "R0D"
-            self.win.save_and_refresh_content()
+            self.win.refresh_manager.save_and_refresh_content()
             
     def toggle_finish_status(self):
         item = self.win.content_tree.currentItem()
@@ -356,7 +356,7 @@ class EventHandlers:
             # Jika status selesai dibatalkan, tanggal akan tetap kosong kecuali diatur manual lagi.
             message = "Status Selesai dibatalkan."
 
-        self.win.save_and_refresh_content()
+        self.win.refresh_manager.save_and_refresh_content()
         self.win.status_bar.showMessage(message, 4000)
 
     def change_date_manually(self):
@@ -381,13 +381,13 @@ class EventHandlers:
             # Jika item belum punya kode repetisi, berikan kode default.
             if not item_dict.get("repetition_code"):
                 item_dict["repetition_code"] = "R0D"
-            self.win.save_and_refresh_content()
+            self.win.refresh_manager.save_and_refresh_content()
             self.win.status_bar.showMessage(f"Tanggal berhasil diubah menjadi {new_date}", 4000)
 
     def repetition_code_changed(self, new_code, item_data):
         item_dict = self.get_item_dict(item_data)
         if not item_dict:
-            self.win.refresh_content_tree()
+            self.win.refresh_manager.refresh_content_tree()
             return
     
         # Get the original date for display purposes in the confirmation dialog
@@ -400,7 +400,7 @@ class EventHandlers:
     
         # If nothing would change, no need to ask for confirmation
         if new_code == item_dict.get("repetition_code") and original_date_str == new_date_str:
-            self.win.refresh_content_tree()
+            self.win.refresh_manager.refresh_content_tree()
             return
     
         reply = QMessageBox.question(self.win, "Konfirmasi Perubahan",
@@ -412,17 +412,17 @@ class EventHandlers:
         if reply == QMessageBox.StandardButton.Yes:
             item_dict["date"] = new_date_str
             item_dict["repetition_code"] = new_code
-            self.win.save_and_refresh_content()
+            self.win.refresh_manager.save_and_refresh_content()
         else:
             # If the user cancels, revert the combobox to the original value.
-            self.win.refresh_content_tree()
+            self.win.refresh_manager.refresh_content_tree()
     
     # --- BARU: Handler untuk Pencarian Konten ---
     def search_content(self):
         """Mengambil query dari input dan merefresh content tree."""
         query = self.win.search_content_input.text()
         self.win.search_query = query
-        self.win.refresh_content_tree()
+        self.win.refresh_manager.refresh_content_tree()
 
 
     # --- Logika Pengurutan & State ---
@@ -434,7 +434,7 @@ class EventHandlers:
             self.win.sort_order = Qt.SortOrder.AscendingOrder
         
         self.win.content_tree.header().setSortIndicator(self.win.sort_column, self.win.sort_order)
-        self.win.refresh_content_tree()
+        self.win.refresh_manager.refresh_content_tree()
 
     def update_button_states(self):
         topic_selected = self.win.topic_list.currentItem() is not None
@@ -552,7 +552,7 @@ class EventHandlers:
             else:
                 category_name = text # Untuk "Semua Task"
             self.win.current_task_category = category_name
-        self.win.refresh_task_list()
+        self.win.refresh_manager.refresh_task_list()
         self.update_button_states()
 
     def create_task_category(self):
@@ -560,7 +560,7 @@ class EventHandlers:
         name, ok = QInputDialog.getText(self.win, "Buat Kategori Baru", "Nama Kategori:")
         if ok and name:
             self.data_manager.create_task_category(name)
-            self.win.refresh_task_category_list()
+            self.win.refresh_manager.refresh_task_category_list()
 
     def rename_task_category(self):
         """Mengubah nama kategori task yang dipilih."""
@@ -571,13 +571,13 @@ class EventHandlers:
         new_name, ok = QInputDialog.getText(self.win, "Ubah Nama Kategori", "Nama Baru:", text=old_name)
         if ok and new_name and new_name != old_name:
             self.data_manager.rename_task_category(old_name, new_name)
-            self.win.refresh_task_category_list()
+            self.win.refresh_manager.refresh_task_category_list()
             # Pilih item yang baru diubah namanya
             for i in range(self.win.task_category_list.count()):
                 if self.win.task_category_list.item(i).text().endswith(new_name):
                     self.win.task_category_list.setCurrentRow(i)
                     break
-            self.win.refresh_task_list()
+            self.win.refresh_manager.refresh_task_list()
 
     def delete_task_category(self):
         """Menghapus kategori task yang dipilih."""
@@ -588,7 +588,7 @@ class EventHandlers:
         reply = QMessageBox.question(self.win, "Konfirmasi", f"Yakin ingin menghapus kategori '{name}' dan semua isinya?")
         if reply == QMessageBox.StandardButton.Yes:
             self.data_manager.delete_task_category(name)
-            self.win.refresh_task_category_list()
+            self.win.refresh_manager.refresh_task_category_list()
 
     def add_task(self):
         """Menambahkan task baru ke kategori yang dipilih."""
@@ -601,7 +601,7 @@ class EventHandlers:
             date_str = datetime.now().strftime("%Y-%m-%d")
             new_task = {'count': 0, 'date': date_str}
             self.data_manager.save_task(self.win.current_task_category, task_name, new_task)
-            self.win.refresh_task_list()
+            self.win.refresh_manager.refresh_task_list()
 
     def edit_task(self):
         """Membuka dialog untuk mengedit nama, hitungan, dan tanggal task."""
@@ -647,9 +647,9 @@ class EventHandlers:
                 self.data_manager.delete_task(category_name, old_task_name)
                 self.data_manager.save_task(category_name, new_task_name, new_task_details)
             
-            self.win.refresh_task_list()
+            self.win.refresh_manager.refresh_task_list()
             # Coba pilih kembali task yang baru di-edit
-            self.win.reselect_task(new_task_name, category_name)
+            self.win.refresh_manager.reselect_task(new_task_name, category_name)
 
 
     def delete_task(self):
@@ -664,7 +664,7 @@ class EventHandlers:
         reply = QMessageBox.question(self.win, "Konfirmasi", f"Yakin ingin menghapus task '{task_name}' dari kategori '{category_name}'?")
         if reply == QMessageBox.StandardButton.Yes:
             self.data_manager.delete_task(category_name, task_name)
-            self.win.refresh_task_list()
+            self.win.refresh_manager.refresh_task_list()
         
     def _adjust_task_count(self, amount):
         """Logika internal untuk mengubah hitungan task."""
@@ -687,5 +687,5 @@ class EventHandlers:
         self.data_manager.save_tasks_data(tasks_data)
         
         # Refresh dan seleksi ulang
-        self.win.refresh_task_list()
-        self.win.reselect_task(task_name, category_name)
+        self.win.refresh_manager.refresh_task_list()
+        self.win.refresh_manager.reselect_task(task_name, category_name)
