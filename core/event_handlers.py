@@ -344,20 +344,40 @@ class EventHandlers:
         item_dict = self.get_item_dict(item_data)
         if not item_dict: return
         
-        # Toggle status selesai
         current_status = item_dict.get("finished", False)
-        item_dict["finished"] = not current_status
-
-        # Jika item ditandai selesai, kosongkan tanggalnya
-        if item_dict["finished"]:
-            item_dict["date"] = None
-            message = "Status diubah menjadi Selesai dan tanggal dikosongkan."
+        
+        if not current_status:
+            # --- Logika untuk menandai selesai ---
+            reply = QMessageBox.question(self.win, "Konfirmasi Selesai",
+                                         "Apakah Anda yakin ingin menandai item ini sebagai 'Selesai'?",
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                         QMessageBox.StandardButton.No)
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                item_dict["finished"] = True
+                item_dict["repetition_code"] = "Finish"
+                item_dict["finished_date"] = today_str # Simpan tanggal selesai
+                item_dict["date"] = None # Hapus tanggal repetisi
+                message = "Status diubah menjadi Selesai."
+                self.win.refresh_manager.save_and_refresh_content()
+                self.win.status_bar.showMessage(message, 4000)
         else:
-            # Jika status selesai dibatalkan, tanggal akan tetap kosong kecuali diatur manual lagi.
-            message = "Status Selesai dibatalkan."
+            # --- Logika untuk membatalkan status selesai ---
+            reply = QMessageBox.question(self.win, "Konfirmasi Batal",
+                                         "Batalkan status 'Selesai'? Item akan kembali ke siklus repetisi.",
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                         QMessageBox.StandardButton.No)
 
-        self.win.refresh_manager.save_and_refresh_content()
-        self.win.status_bar.showMessage(message, 4000)
+            if reply == QMessageBox.StandardButton.Yes:
+                item_dict["finished"] = False
+                item_dict["repetition_code"] = "R0D" # Kembalikan ke kode awal
+                item_dict["date"] = datetime.now().strftime("%Y-%m-%d") # Atur tanggal ke hari ini
+                if "finished_date" in item_dict:
+                    del item_dict["finished_date"] # Hapus tanggal selesai
+                message = "Status Selesai dibatalkan."
+                self.win.refresh_manager.save_and_refresh_content()
+                self.win.status_bar.showMessage(message, 4000)
 
     def change_date_manually(self):
         item = self.win.content_tree.currentItem()
