@@ -153,11 +153,8 @@ class UIBuilder:
         search_layout = QHBoxLayout()
         self.win.search_content_input = QLineEdit()
         self.win.search_content_input.setPlaceholderText("Cari discussion atau point...")
-        self.win.search_content_input.returnPressed.connect(self.win.handlers.search_content)
-        self.win.btn_search_content = QPushButton("Cari")
-        self.win.btn_search_content.clicked.connect(self.win.handlers.search_content)
+        self.win.search_content_input.returnPressed.connect(self.win.handlers.on_search_text_changed)
         search_layout.addWidget(self.win.search_content_input)
-        search_layout.addWidget(self.win.btn_search_content)
         
         self.win.content_tree = QTreeWidget()
         self.win.content_tree.setHeaderLabels(["Content", "Date", "Code"])

@@ -437,13 +437,10 @@ class EventHandlers:
             # If the user cancels, revert the combobox to the original value.
             self.win.refresh_manager.refresh_content_tree()
     
-    # --- BARU: Handler untuk Pencarian Konten ---
-    def search_content(self):
-        """Mengambil query dari input dan merefresh content tree."""
+    def on_search_text_changed(self):
         query = self.win.search_content_input.text()
         self.win.search_query = query
         self.win.refresh_manager.refresh_content_tree()
-
 
     # --- Logika Pengurutan & State ---
     def sort_by_column(self, column_index):

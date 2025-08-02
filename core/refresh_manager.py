@@ -109,8 +109,34 @@ class RefreshManager:
             {"data": data, "original_index": index}
             for index, data in enumerate(self.win.current_content.get("content", []))
         ]
+        
+        # --- AWAL PERBAIKAN ---
+        # Langkah 2: Terapkan filter pencarian jika ada query
+        if self.win.search_query:
+            query = self.win.search_query.lower()
+            search_filtered_list = []
+            for item in discussions_to_process:
+                discussion_data = item['data']
+                # Cek apakah query ada di teks diskusi
+                if query in discussion_data.get("discussion", "").lower():
+                    # Jika ada, tambahkan seluruh diskusi beserta semua point-nya
+                    search_filtered_list.append(item)
+                else:
+                    # Jika tidak, cek di setiap point
+                    if discussion_data.get("points"):
+                        matching_points = [
+                            point for point in discussion_data.get("points", [])
+                            if query in point.get("point_text", "").lower()
+                        ]
+                        # Jika ada point yang cocok, tambahkan diskusi tapi HANYA dengan point yang cocok
+                        if matching_points:
+                            new_disc_data = discussion_data.copy()
+                            new_disc_data["points"] = matching_points
+                            search_filtered_list.append({"data": new_disc_data, "original_index": item["original_index"]})
+            discussions_to_process = search_filtered_list
+        # --- AKHIR PERBAIKAN ---
 
-        # Langkah 2: Terapkan filter pada daftar yang sudah memiliki indeks asli
+        # Langkah 3: Terapkan filter tanggal pada daftar yang sudah memiliki indeks asli
         if self.win.date_filter != "all":
             today_str = datetime.now().strftime("%Y-%m-%d")
             filtered_list = []
@@ -145,14 +171,14 @@ class RefreshManager:
 
             discussions_to_process = filtered_list
 
-        # Langkah 3: Urutkan daftar (yang mungkin sudah terfilter)
+        # Langkah 4: Urutkan daftar (yang mungkin sudah terfilter)
         sorted_discussions = sorted(
             discussions_to_process,
             key=lambda item: get_content_sort_key(item['data'])
         )
 
         item_to_reselect = None
-        # Langkah 4: Bangun Tree UI menggunakan daftar yang sudah benar
+        # Langkah 5: Bangun Tree UI menggunakan daftar yang sudah benar
         for i, item in enumerate(sorted_discussions): # Tambahkan enumerate untuk penomoran
             original_index = item['original_index']
             discussion_data = item['data']
