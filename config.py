@@ -1,6 +1,7 @@
 # file: config.py
 
 import os
+import json
 
 def load_stylesheet(filename):
     """Membaca file stylesheet dari direktori assets/styles."""
@@ -13,6 +14,22 @@ def load_stylesheet(filename):
         print(f"Peringatan: Stylesheet '{filename}' tidak ditemukan di '{path}'.")
         return ""
 
+def load_icons():
+    """Membaca dan mem-parsing ikon dari file assets/icons.json."""
+    path = os.path.join("assets", "icons.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            categorized_icons = json.load(f)
+        
+        # Buat daftar datar (flat list) dari semua ikon untuk validasi
+        all_icons = [icon for category in categorized_icons.values() for icon in category]
+        return categorized_icons, all_icons
+    except (FileNotFoundError, json.JSONDecodeError):
+        print(f"Peringatan: File 'icons.json' tidak ditemukan atau formatnya salah.")
+        # Fallback ke daftar default jika file gagal dimuat
+        default_icons = ["📁", "📚", "📂", "✔️"]
+        return {"Default": default_icons}, default_icons
+
 # --- Path Konfigurasi ---
 BASE_PATH = "data/contents/topics"
 TASK_BASE_PATH = "data/contents/my_tasks.json"
@@ -23,7 +40,7 @@ DEFAULT_SUBJECT_ICON = "📚"
 DEFAULT_CATEGORY_ICON = "📂"
 DEFAULT_TASK_ICON = "✔️"
 
-AVAILABLE_ICONS = ["📁", "💼", "📝", "📓", "📚", "💡", "🎯", "⭐", "⚙️", "🔧", "📂", "✔️"]
+CATEGORIZED_ICONS, AVAILABLE_ICONS = load_icons()
 
 # --- Konfigurasi Skala UI ---
 UI_SCALE_CONFIG = {
