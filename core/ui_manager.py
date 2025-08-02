@@ -42,7 +42,8 @@ class UIManager:
         date_format_actions = {
             "Panjang (Sabtu, 02 Agustus 2025)": "long",
             "Sedang (02 Agu 2025)": "medium",
-            "Pendek (2025-08-02)": "short"
+            "Pendek (2025-08-02)": "short",
+            "Tidak ada Tahun (08-02)": "no_year"
         }
         current_format = self.settings.value("date_format", "long")
         for text, format_id in date_format_actions.items():

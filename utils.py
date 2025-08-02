@@ -16,7 +16,9 @@ def format_date(date_str, format_type="long"):
         if format_type == "short":
             return date_obj.strftime("%Y-%m-%d")
         elif format_type == "medium":
-            return date_obj.strftime("%d %b %Y")
+            return date_obj.strftime("%d %b %Y ")
+        elif format_type == "no_year":
+            return date_obj.strftime("%d %b")
         # Default to long format
         return date_obj.strftime("%A, %d %B %Y")
     except ValueError:
