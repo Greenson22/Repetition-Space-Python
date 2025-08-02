@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "Alpha v1.2",
+      "date": "02-08-2025",
+      "changes": [
+        "<b>Fitur:</b> Menambahkan fungsionalitas untuk mengimpor, menyimpan, dan mengelola tema kustom (file .qss).",
+        "<b>Fitur:</b> Tema kustom yang diimpor sekarang muncul di submenu 'Tema Kustom' untuk kemudahan akses dan dapat dipilih kembali.",
+        "<b>Fitur:</b> Menambahkan dialog 'Kelola Tema' untuk menghapus tema kustom yang tidak diinginkan.",
+        "<b>Perbaikan:</b> Struktur menu 'Mode' dirombak untuk mengakomodasi tema bawaan dan kustom secara dinamis.",
+        "<b>Perbaikan:</b> Aplikasi sekarang secara otomatis memuat tema kustom terakhir yang digunakan saat startup."
+      ]
+    },
+    {
       "version": "Alpha v1.1",
       "date": "02-08-2025",
       "changes": [
