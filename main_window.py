@@ -11,6 +11,7 @@ from core.event_handlers import EventHandlers
 from core.ui_manager import UIManager
 from core.state_manager import StateManager
 from core.refresh_manager import RefreshManager
+from utils import resource_path
 
 class ContentManager(QMainWindow):
     def __init__(self):
@@ -18,7 +19,7 @@ class ContentManager(QMainWindow):
         
         self.setWindowTitle("Repetition App")
         self.setGeometry(100, 100, 1200, 650)
-        self.setWindowIcon(QIcon('assets/images/icons/bird_2.png'))
+        self.setWindowIcon(QIcon(resource_path("assets/images/icons/bird_2.png")))
         
         # --- Inisialisasi Properti Inti ---
         self.base_path = config.BASE_PATH

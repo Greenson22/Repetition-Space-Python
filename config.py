@@ -2,11 +2,12 @@
 
 import os
 import json
+from utils import resource_path
 
 def load_stylesheet(filename):
     """Membaca file stylesheet dari direktori assets/styles."""
-    # Pastikan path ini sesuai dengan struktur proyek Anda
-    path = os.path.join("assets", "styles", filename)
+    # Menggunakan resource_path untuk menemukan stylesheet
+    path = resource_path(os.path.join("assets", "styles", filename))
     try:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
@@ -16,7 +17,8 @@ def load_stylesheet(filename):
 
 def load_icons():
     """Membaca dan mem-parsing ikon dari file assets/icons.json."""
-    path = os.path.join("assets", "icons.json")
+    # Menggunakan resource_path untuk menemukan icons.json
+    path = resource_path(os.path.join("assets", "icons.json"))
     try:
         with open(path, "r", encoding="utf-8") as f:
             categorized_icons = json.load(f)
@@ -31,6 +33,8 @@ def load_icons():
         return {"Default": default_icons}, default_icons
 
 # --- Path Konfigurasi ---
+# Path ini untuk data pengguna, JANGAN gunakan resource_path
+# karena --add-data "data;data" menempatkannya relatif terhadap .exe
 BASE_PATH = "data/contents/topics"
 TASK_BASE_PATH = "data/contents/my_tasks.json"
 
