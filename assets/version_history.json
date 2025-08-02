@@ -1,6 +1,16 @@
 {
   "versions": [
     {
+      "version": "Alpha v1.3",
+      "date": "02-08-2025",
+      "changes": [
+        "<b>Fitur:</b> Menambahkan kemampuan untuk mengubah ikon pada setiap kategori task, memberikan personalisasi lebih pada tampilan.",
+        "<b>Perbaikan:</b> Memperbaiki bug di mana task tidak muncul ketika sebuah kategori dipilih, memastikan task list selalu sinkron dengan seleksi.",
+        "<b>Perbaikan:</b> Logika untuk mengekstrak nama kategori dari list item telah diperkuat agar dapat menangani item dengan atau tanpa ikon secara konsisten.",
+        "<b>Perbaikan:</b> Tombol 'Tambah Task' kini hanya aktif ketika sebuah kategori spesifik (bukan 'Semua Task') dipilih untuk mencegah kesalahan input."
+      ]
+    },
+    {
       "version": "Alpha v1.2",
       "date": "02-08-2025",
       "changes": [
