@@ -7,7 +7,6 @@ from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt
 import config
 import json
-# Menjadi seperti ini
 from utils import resource_path
 
 class UIManager:
